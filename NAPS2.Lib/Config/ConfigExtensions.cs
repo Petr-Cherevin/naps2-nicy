@@ -31,7 +31,7 @@ public static class ConfigExtensions
 
     public static OcrParams OcrAfterScanningParams(this Naps2Config config)
     {
-        if (!config.Get(c => c.OcrAfterScanning) && !config.Get(c => c.OcrAutoRecognize))
+        if (!config.Get(c => c.OcrAutoRecognize))
         {
             return OcrParams.Empty;
         }
@@ -39,12 +39,12 @@ public static class ConfigExtensions
     }
 
     /// <summary>
-    /// Gets the OCR params to use for pages newly added to the document (e.g. by importing), which is only non-empty
-    /// if automatic recognition is turned on.
+    /// Gets the OCR params to use for pages added to the document by importing or pasting, which is only non-empty
+    /// if automatic recognition is turned on and set to include imported pages.
     /// </summary>
-    public static OcrParams OcrAutoRecognizeParams(this Naps2Config config)
+    public static OcrParams OcrAfterImportingParams(this Naps2Config config)
     {
-        if (!config.Get(c => c.OcrAutoRecognize))
+        if (!config.Get(c => c.OcrAutoRecognize) || !config.Get(c => c.OcrAutoRecognizeImports))
         {
             return OcrParams.Empty;
         }

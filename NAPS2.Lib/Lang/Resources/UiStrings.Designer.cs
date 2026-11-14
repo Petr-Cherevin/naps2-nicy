@@ -2156,5 +2156,17 @@ namespace NAPS2.Lang.Resources {
                 return ResourceManager.GetString("Apply", resourceCulture);
             }
         }
+        
+        internal static string RecognizeScansOnly {
+            get {
+                return ResourceManager.GetString("RecognizeScansOnly", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeScansAndImports {
+            get {
+                return ResourceManager.GetString("RecognizeScansAndImports", resourceCulture);
+            }
+        }
     }
 }

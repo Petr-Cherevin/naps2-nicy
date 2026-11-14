@@ -57,6 +57,7 @@ public static class InternalDefaults
             OcrPreProcessing = false,
             OcrAfterScanning = true,
             OcrAutoRecognize = false,
+            OcrAutoRecognizeImports = false,
             LastImageExt = "",
             LastPdfOrImageExt = "",
             ThumbnailSize = ThumbnailSizes.DEFAULT_SIZE,

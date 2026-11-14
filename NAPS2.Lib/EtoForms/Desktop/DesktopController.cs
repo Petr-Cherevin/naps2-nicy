@@ -439,7 +439,7 @@ public class DesktopController
     /// <param name="sourceOp">The operation that produces the images, or null if there's only a single image.</param>
     private Action<ProcessedImage> WithAutoRecognize(Action<ProcessedImage> imageCallback, IOperation? sourceOp = null)
     {
-        var ocrParams = _config.OcrAutoRecognizeParams();
+        var ocrParams = _config.OcrAfterImportingParams();
         if (string.IsNullOrEmpty(ocrParams.LanguageCode))
         {
             return imageCallback;

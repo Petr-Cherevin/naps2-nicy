@@ -1077,4 +1077,10 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="Apply" xml:space="preserve">
     <value>Применить</value>
   </data>
+  <data name="RecognizeScansOnly" xml:space="preserve">
+    <value>Только сканы</value>
+  </data>
+  <data name="RecognizeScansAndImports" xml:space="preserve">
+    <value>Сканы и импортированные документы</value>
+  </data>
 </root>

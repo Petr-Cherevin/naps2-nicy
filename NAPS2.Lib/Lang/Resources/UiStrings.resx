@@ -1194,4 +1194,10 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="Apply" xml:space="preserve">
     <value>Apply</value>
   </data>
+  <data name="RecognizeScansOnly" xml:space="preserve">
+    <value>Scanned Pages Only</value>
+  </data>
+  <data name="RecognizeScansAndImports" xml:space="preserve">
+    <value>Scanned and Imported Pages</value>
+  </data>
 </root>

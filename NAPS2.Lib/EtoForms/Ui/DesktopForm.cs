@@ -680,18 +680,32 @@ public abstract class DesktopForm : EtoFormBase
 
     private void UpdateAutoRecognize()
     {
-        // This is effectively a checkbox menu item, with the icon acting as the check mark
+        // These are effectively a checkbox menu item (whether to recognize automatically) followed by two radio items
+        // (which pages that applies to), with the icon acting as the check mark
+        bool auto = Config.Get(c => c.OcrAutoRecognize);
+        bool imports = Config.Get(c => c.OcrAutoRecognizeImports);
         _autoRecognizeCommands.Value = ImmutableList.Create<Command>(
-            new ActionCommand(ToggleAutoRecognize)
+            new ActionCommand(() => SetAutoRecognize(!auto, imports))
             {
                 MenuText = UiStrings.RecognizeAutomatically,
-                IconName = Config.Get(c => c.OcrAutoRecognize) ? "accept" : null
+                IconName = auto ? "accept" : null
+            },
+            new ActionCommand(() => SetAutoRecognize(auto, false))
+            {
+                MenuText = UiStrings.RecognizeScansOnly,
+                IconName = imports ? null : "accept"
+            },
+            new ActionCommand(() => SetAutoRecognize(auto, true))
+            {
+                MenuText = UiStrings.RecognizeScansAndImports,
+                IconName = imports ? "accept" : null
             });
     }
 
-    private void ToggleAutoRecognize()
+    private void SetAutoRecognize(bool auto, bool imports)
     {
-        Config.User.Set(c => c.OcrAutoRecognize, !Config.Get(c => c.OcrAutoRecognize));
+        Config.User.Set(c => c.OcrAutoRecognize, auto);
+        Config.User.Set(c => c.OcrAutoRecognizeImports, imports);
         // Updating the command list recreates the menu items, so we need to wait until the click is fully handled
         Invoker.Current.InvokeDispatch(UpdateAutoRecognize);
     }
