@@ -57,6 +57,8 @@ internal class ToolbarSettingsPanel : SettingsPanel
         yield return (ToolbarButtons.Scan, UiStrings.Scan);
         yield return (ToolbarButtons.Profiles, UiStrings.Profiles);
         yield return (ToolbarButtons.Ocr, UiStrings.Ocr);
+        if (!EtoPlatform.Current.IsMac)
+            yield return (ToolbarButtons.Recognize, UiStrings.Recognize);
         yield return (ToolbarButtons.Import, UiStrings.Import);
         yield return (ToolbarButtons.SavePdf, UiStrings.SavePdf);
         yield return (ToolbarButtons.SaveImages, UiStrings.SaveImages);
@@ -66,6 +68,8 @@ internal class ToolbarSettingsPanel : SettingsPanel
             yield return (ToolbarButtons.Print, UiStrings.Print);
         yield return (ToolbarButtons.Image, UiStrings.Image);
         yield return (ToolbarButtons.Rotate, UiStrings.Rotate);
+        if (!EtoPlatform.Current.IsMac)
+            yield return (ToolbarButtons.RotateButtons, UiStrings.RotateButtons);
         yield return (ToolbarButtons.Move, UiStrings.MoveUpDown);
         yield return (ToolbarButtons.Reorder, UiStrings.Reorder);
         yield return (ToolbarButtons.Delete, UiStrings.Delete);

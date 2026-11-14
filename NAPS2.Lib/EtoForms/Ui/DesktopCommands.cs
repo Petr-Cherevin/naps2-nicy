@@ -62,6 +62,26 @@ public class DesktopCommands
             Text = UiStrings.Ocr,
             IconName = "text"
         };
+        Recognize = new ActionCommand(() =>
+        {
+            if (!desktopController.IsOcrEnabled)
+            {
+                // OCR needs to be set up before we can run it
+                desktopSubFormController.ShowOcrForm();
+            }
+            if (desktopController.IsOcrEnabled)
+            {
+                desktopController.Recognize();
+            }
+        })
+        {
+            Text = UiStrings.Recognize,
+            IconName = "text"
+        };
+        OcrSettings = new ActionCommand(desktopSubFormController.ShowOcrForm)
+        {
+            Text = UiStrings.OcrSettings
+        };
         Import = new ActionCommand(desktopController.Import)
         {
             Text = UiStrings.Import,
@@ -225,6 +245,27 @@ public class DesktopCommands
         CustomRotate = new ActionCommand(desktopSubFormController.ShowRotateForm)
         {
             Text = UiStrings.CustomRotation
+        };
+        // Commands with short labels for the compact (stacked) rotate buttons on the toolbar
+        RotateLeftCompact = new ActionCommand(imageListActions.RotateLeft)
+        {
+            Text = UiStrings.RotateLeftShort,
+            IconName = "arrow_rotate_anticlockwise"
+        };
+        RotateRightCompact = new ActionCommand(imageListActions.RotateRight)
+        {
+            Text = UiStrings.RotateRightShort,
+            IconName = "arrow_rotate_clockwise"
+        };
+        Rotate180Compact = new ActionCommand(imageListActions.Flip)
+        {
+            Text = UiStrings.Rotate180,
+            IconName = "arrow_switch"
+        };
+        DeskewCompact = new ActionCommand(imageListActions.Deskew)
+        {
+            Text = UiStrings.DeskewShort,
+            IconName = "text_align_justify"
         };
         MoveUp = new ActionCommand(imageListActions.MoveUp)
         {
@@ -396,6 +437,8 @@ public class DesktopCommands
     public ActionCommand ScannerSharing { get; set; }
     public ActionCommand Profiles { get; set; }
     public ActionCommand Ocr { get; set; }
+    public ActionCommand Recognize { get; set; }
+    public ActionCommand OcrSettings { get; set; }
     public ActionCommand Import { get; set; }
     public ActionCommand SaveAll { get; set; }
     public ActionCommand SaveSelected { get; set; }
@@ -431,6 +474,10 @@ public class DesktopCommands
     public ActionCommand Flip { get; set; }
     public ActionCommand Deskew { get; set; }
     public ActionCommand CustomRotate { get; set; }
+    public ActionCommand RotateLeftCompact { get; set; }
+    public ActionCommand RotateRightCompact { get; set; }
+    public ActionCommand Rotate180Compact { get; set; }
+    public ActionCommand DeskewCompact { get; set; }
     public ActionCommand MoveUp { get; set; }
     public ActionCommand MoveDown { get; set; }
     public ActionCommand MoveToPosition { get; set; }

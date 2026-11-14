@@ -150,6 +150,9 @@ public class CommonConfig
     [Common]
     public bool OcrAfterScanning { get; set; }
 
+    [Common]
+    public bool OcrAutoRecognize { get; set; }
+
     [User]
     public string? LastImageExt { get; set; }
 

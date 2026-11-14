@@ -36,6 +36,7 @@ public abstract class DesktopForm : EtoFormBase
     private readonly ListProvider<Command> _languageMenuCommands = new();
     protected readonly ListProvider<Command> _editWithCommands = new();
     protected readonly ListProvider<Command> _manualDuplexPreviewCommands = new();
+    protected readonly ListProvider<Command> _autoRecognizeCommands = new();
     private readonly ContextMenu _contextMenu = new();
     private readonly ActionCommand _pasteAfterCommand;
     private readonly ActionCommand _pasteAtEndCommand;
@@ -106,6 +107,7 @@ public abstract class DesktopForm : EtoFormBase
         UpdateProfilesToolbar();
         InitLanguageDropdown();
         UpdateManualDuplex();
+        UpdateAutoRecognize();
 
         _listView = EtoPlatform.Current.CreateListView(imageListViewBehavior);
         _listView.Selection = ImageList.Selection;
@@ -372,6 +374,11 @@ public abstract class DesktopForm : EtoFormBase
             CreateToolbarButton(Commands.Profiles);
         if (ShowButton(ToolbarButtons.Ocr))
             CreateToolbarButton(Commands.Ocr);
+        if (ShowButton(ToolbarButtons.Recognize))
+            CreateToolbarButtonWithMenu(Commands.Recognize, DesktopToolbarMenuType.Recognize, new MenuProvider()
+                .Append(Commands.OcrSettings)
+                .Separator()
+                .Dynamic(_autoRecognizeCommands));
         if (ShowButton(ToolbarButtons.Import))
             CreateToolbarButton(Commands.Import);
         separatorPending = true;
@@ -418,6 +425,12 @@ public abstract class DesktopForm : EtoFormBase
                 .Append(Commands.ResetImage));
         if (ShowButton(ToolbarButtons.Rotate))
             CreateToolbarMenu(Commands.RotateMenu, GetRotateMenuProvider());
+        if (ShowButton(ToolbarButtons.RotateButtons))
+        {
+            // Two columns of stacked buttons: Left/Right and 180/Deskew
+            CreateToolbarStackedButtons(Commands.RotateLeftCompact, Commands.RotateRightCompact);
+            CreateToolbarStackedButtons(Commands.Rotate180Compact, Commands.DeskewCompact);
+        }
         if (ShowButton(ToolbarButtons.Move))
             CreateToolbarStackedButtons(Commands.MoveUp, Commands.MoveDown);
         if (ShowButton(ToolbarButtons.Reorder))
@@ -595,7 +608,9 @@ public abstract class DesktopForm : EtoFormBase
         // Top-level toolbar items
         Commands.ImageMenu.Enabled =
             Commands.RotateMenu.Enabled = Commands.MoveUp.Enabled = Commands.MoveDown.Enabled =
-                Commands.Delete.Enabled = ImageList.Selection.Any();
+                Commands.RotateLeftCompact.Enabled = Commands.RotateRightCompact.Enabled =
+                    Commands.Rotate180Compact.Enabled = Commands.DeskewCompact.Enabled =
+                        Commands.Delete.Enabled = ImageList.Selection.Any();
         Commands.SavePdf.Enabled = Commands.SaveImages.Enabled = Commands.ClearAll.Enabled =
             Commands.ReorderMenu.Enabled =
                 Commands.EmailPdf.Enabled = Commands.Print.Enabled = ImageList.Images.Any();
@@ -661,6 +676,24 @@ public abstract class DesktopForm : EtoFormBase
         _manualDuplexPreviewCommands.Value = Config.Get(c => c.ManualDuplexSettings.AlwaysShowPreview)
             ? []
             : [Commands.ManualDuplexPreview];
+    }
+
+    private void UpdateAutoRecognize()
+    {
+        // This is effectively a checkbox menu item, with the icon acting as the check mark
+        _autoRecognizeCommands.Value = ImmutableList.Create<Command>(
+            new ActionCommand(ToggleAutoRecognize)
+            {
+                MenuText = UiStrings.RecognizeAutomatically,
+                IconName = Config.Get(c => c.OcrAutoRecognize) ? "accept" : null
+            });
+    }
+
+    private void ToggleAutoRecognize()
+    {
+        Config.User.Set(c => c.OcrAutoRecognize, !Config.Get(c => c.OcrAutoRecognize));
+        // Updating the command list recreates the menu items, so we need to wait until the click is fully handled
+        Invoker.Current.InvokeDispatch(UpdateAutoRecognize);
     }
 
     protected virtual void UpdateTitle(ScanProfile? defaultProfile)

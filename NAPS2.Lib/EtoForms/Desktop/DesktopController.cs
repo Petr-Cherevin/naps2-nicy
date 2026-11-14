@@ -6,6 +6,7 @@ using Grpc.Core;
 using NAPS2.EtoForms.Notifications;
 using NAPS2.ImportExport;
 using NAPS2.ImportExport.Images;
+using NAPS2.Ocr;
 using NAPS2.Platform.Windows;
 using NAPS2.Recovery;
 using NAPS2.Remoting;
@@ -351,7 +352,7 @@ public class DesktopController
     public void ImportFiles(ICollection<string> files, bool background = false)
     {
         var op = _operationFactory.Create<ImportOperation>();
-        if (op.Start(OrderFiles(files), _desktopImagesController.ReceiveScannedImage(),
+        if (op.Start(OrderFiles(files), WithAutoRecognize(_desktopImagesController.ReceiveScannedImage(), op),
                 new ImportParams { ThumbnailSize = _thumbnailController.RenderSize }))
         {
             if (background)
@@ -376,7 +377,7 @@ public class DesktopController
     internal void ImportDirect(ImageTransferData data, bool copy, UiImage? insertAfter = null)
     {
         var op = _operationFactory.Create<DirectImportOperation>();
-        if (op.Start(data, copy, _desktopImagesController.ReceiveScannedImage(insertAfter),
+        if (op.Start(data, copy, WithAutoRecognize(_desktopImagesController.ReceiveScannedImage(insertAfter), op),
                 new DirectImportParams { ThumbnailSize = _thumbnailController.RenderSize }))
         {
             _operationProgress.ShowProgress(op);
@@ -403,9 +404,86 @@ public class DesktopController
                 var processedImage = _scanningContext.CreateProcessedImage(image);
                 processedImage = ImportPostProcessor.AddPostProcessingData(processedImage, image,
                     _thumbnailController.RenderSize, new BarcodeDetectionOptions(), true);
-                _desktopImagesController.ReceiveScannedImage(insertAfter)(processedImage);
+                WithAutoRecognize(_desktopImagesController.ReceiveScannedImage(insertAfter))(processedImage);
             });
         }
+    }
+
+    /// <summary>
+    /// Whether OCR has been set up (enabled with a language selected).
+    /// </summary>
+    public bool IsOcrEnabled => !string.IsNullOrEmpty(_config.DefaultOcrParams().LanguageCode);
+
+    /// <summary>
+    /// Runs OCR on all images with the saved OCR settings, without saving a PDF. The results are cached and used the
+    /// next time a PDF is saved.
+    /// </summary>
+    public void Recognize()
+    {
+        if (!_imageList.Images.Any())
+        {
+            return;
+        }
+        var op = _operationFactory.Create<RecognizeOperation>();
+        if (op.Start(_imageList.Images, _config.DefaultOcrParams(), OcrPriority.Foreground))
+        {
+            _operationProgress.ShowProgress(op);
+        }
+    }
+
+    /// <summary>
+    /// If automatic recognition is turned on, wraps the image callback so that OCR is also run in the background for
+    /// each received image. Otherwise the callback is returned as-is.
+    /// </summary>
+    /// <param name="imageCallback">The callback that receives new images.</param>
+    /// <param name="sourceOp">The operation that produces the images, or null if there's only a single image.</param>
+    private Action<ProcessedImage> WithAutoRecognize(Action<ProcessedImage> imageCallback, IOperation? sourceOp = null)
+    {
+        var ocrParams = _config.OcrAutoRecognizeParams();
+        if (string.IsNullOrEmpty(ocrParams.LanguageCode))
+        {
+            return imageCallback;
+        }
+        var lockObj = new object();
+        RecognizeOperation? recognizeOp = null;
+        bool sourceFinished = sourceOp == null;
+        if (sourceOp != null)
+        {
+            sourceOp.Finished += (_, _) =>
+            {
+                lock (lockObj)
+                {
+                    sourceFinished = true;
+                    recognizeOp?.Seal();
+                }
+            };
+        }
+        return image =>
+        {
+            // The callback takes ownership of the image, so we need our own clone for OCR
+            var clone = image.Clone();
+            imageCallback(image);
+            lock (lockObj)
+            {
+                if (recognizeOp == null)
+                {
+                    // Only start the OCR operation once we actually have an image
+                    var op = _operationFactory.Create<RecognizeOperation>();
+                    if (!op.Start(ocrParams, OcrPriority.Background))
+                    {
+                        clone.Dispose();
+                        return;
+                    }
+                    recognizeOp = op;
+                    _operationProgress.ShowBackgroundProgress(op);
+                }
+                recognizeOp.Add(clone);
+                if (sourceFinished)
+                {
+                    recognizeOp.Seal();
+                }
+            }
+        };
     }
 
     public async Task Copy()

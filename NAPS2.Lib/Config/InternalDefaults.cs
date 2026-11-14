@@ -56,6 +56,7 @@ public static class InternalDefaults
             OcrMode = LocalizedOcrMode.Fast,
             OcrPreProcessing = false,
             OcrAfterScanning = true,
+            OcrAutoRecognize = false,
             LastImageExt = "",
             LastPdfOrImageExt = "",
             ThumbnailSize = ThumbnailSizes.DEFAULT_SIZE,
