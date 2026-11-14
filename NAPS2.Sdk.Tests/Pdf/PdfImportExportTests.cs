@@ -112,6 +112,58 @@ public class PdfImportExportTests : ContextualTests
 
     [Theory]
     [ClassData(typeof(OcrTestData))]
+    public async Task ImportRedactExport(OcrTestConfig config)
+    {
+        config.StorageConfig.Apply(this);
+        SetUpFakeOcr(new()
+        {
+            { LoadImage(PdfResources.word_p1), "Page one." },
+            { LoadImage(PdfResources.word_p2), "Page two." },
+            { LoadImage(PdfResources.word_patcht_p1), "Sized for printing unscaled" }
+        });
+
+        var importPathForOcr = P("import_ocr.pdf");
+        File.WriteAllBytes(importPathForOcr, PdfResources.word_patcht_pdf);
+        var images = await _importer.Import(_importPath).ToListAsync();
+        images.AddRange(await _importer.Import(importPathForOcr).ToListAsync());
+        Assert.Equal(3, images.Count);
+
+        // Export before redacting, which also means any OCR results for the original pages are cached
+        await _exporter.Export(_exportPath, images, ocrParams: config.OcrParams);
+        PdfAsserts.AssertContainsTextOnce("Page one.", _exportPath);
+        PdfAsserts.AssertContainsTextOnce("Page two.", _exportPath);
+        if (config.OcrParams != null)
+        {
+            PdfAsserts.AssertContainsTextOnce("Sized for printing unscaled", _exportPath);
+        }
+
+        // Redact the whole of the first page (which has text in the original PDF) and the third page (which has text
+        // from OCR), leaving the second page as-is
+        var redactedImages = new List<ProcessedImage>
+        {
+            RedactAll(images[0]),
+            images[1],
+            RedactAll(images[2])
+        };
+        var redactedExportPath = P("export_redacted.pdf");
+        await _exporter.Export(redactedExportPath, redactedImages, ocrParams: config.OcrParams);
+
+        PdfAsserts.AssertPageCount(3, redactedExportPath);
+        // Neither the text from the original PDF nor the previous OCR results should be in the redacted PDF
+        PdfAsserts.AssertDoesNotContainText("Page one.", redactedExportPath);
+        PdfAsserts.AssertDoesNotContainText("Sized for printing unscaled", redactedExportPath);
+        PdfAsserts.AssertContainsTextOnce("Page two.", redactedExportPath);
+    }
+
+    private static ProcessedImage RedactAll(ProcessedImage image)
+    {
+        using var rendered = image.Render();
+        return image.WithTransform(
+            new RedactTransform(0, 0, rendered.Width, rendered.Height, rendered.Width, rendered.Height));
+    }
+
+    [Theory]
+    [ClassData(typeof(OcrTestData))]
     public async Task ImportExportOcrablePdf(OcrTestConfig config)
     {
         config.StorageConfig.Apply(this);
