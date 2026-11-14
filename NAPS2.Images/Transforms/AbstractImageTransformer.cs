@@ -194,14 +194,15 @@ internal abstract class AbstractImageTransformer<TImage> where TImage : IMemoryI
 
     protected virtual TImage PerformTransform(TImage image, RedactTransform transform)
     {
-        double xScale = image.Width / (double) (transform.OriginalWidth > 0 ? transform.OriginalWidth : image.Width),
-            yScale = image.Height / (double) (transform.OriginalHeight > 0 ? transform.OriginalHeight : image.Height);
+        int originalWidth = transform.OriginalWidth > 0 ? transform.OriginalWidth : image.Width;
+        int originalHeight = transform.OriginalHeight > 0 ? transform.OriginalHeight : image.Height;
 
-        // Round outwards so the scaled rectangle never covers less than what was selected
-        int x1 = ((int) Math.Floor(transform.Left * xScale)).Clamp(0, image.Width);
-        int y1 = ((int) Math.Floor(transform.Top * yScale)).Clamp(0, image.Height);
-        int x2 = ((int) Math.Ceiling((transform.Left + transform.Width) * xScale)).Clamp(0, image.Width);
-        int y2 = ((int) Math.Ceiling((transform.Top + transform.Height) * yScale)).Clamp(0, image.Height);
+        // Scale the rectangle to the actual image size. We multiply before dividing to avoid floating point error, and
+        // round outwards so the scaled rectangle never covers less than what was selected.
+        int x1 = ScaleCoordinate(transform.Left, image.Width, originalWidth, false);
+        int y1 = ScaleCoordinate(transform.Top, image.Height, originalHeight, false);
+        int x2 = ScaleCoordinate(transform.Left + transform.Width, image.Width, originalWidth, true);
+        int y2 = ScaleCoordinate(transform.Top + transform.Height, image.Height, originalHeight, true);
         if (x2 <= x1 || y2 <= y1)
         {
             return image;
@@ -217,6 +218,12 @@ internal abstract class AbstractImageTransformer<TImage> where TImage : IMemoryI
         }.Perform(fill, image);
 
         return image;
+    }
+
+    private static int ScaleCoordinate(int value, int actualSize, int originalSize, bool roundUp)
+    {
+        double scaled = (long) value * actualSize / (double) originalSize;
+        return ((int) (roundUp ? Math.Ceiling(scaled) : Math.Floor(scaled))).Clamp(0, actualSize);
     }
 
     protected virtual TImage PerformTransform(TImage image, ScaleTransform transform)
