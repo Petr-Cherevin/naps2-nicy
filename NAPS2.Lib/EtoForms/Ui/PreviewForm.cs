@@ -16,6 +16,8 @@ public class PreviewForm : EtoDialogBase
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
     private readonly CheckToolItem _redactButton = new() { ToolTip = UiStrings.Redact };
+    private readonly ButtonToolItem _redactColorButton = new() { ToolTip = UiStrings.RedactColor };
+    private bool _redactMode;
     private UiImage? _currentImage;
 
     public PreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
@@ -33,7 +35,8 @@ public class PreviewForm : EtoDialogBase
         ImageViewer.ColorScheme = colorScheme;
         ImageViewer.ZoomChanged += ImageViewerZoomChanged;
         ImageViewer.SelectionRectsChanged += (_, _) => UpdateRedactCommands();
-        _redactButton.CheckedChanged += (_, _) => ImageViewer.RectSelectionEnabled = _redactButton.Checked;
+        _redactButton.Click += (_, _) => SetRedactMode(!_redactMode);
+        _redactColorButton.Click += (_, _) => ToggleRedactColor();
         ImageList.ImagesUpdated += ImageList_ImagesUpdated;
         _editWithController.AppChanged += EditWithController_AppChanged;
 
@@ -224,6 +227,7 @@ public class PreviewForm : EtoDialogBase
     protected virtual void CreateToolbar()
     {
         EtoPlatform.Current.AttachDpiDependency(this, UpdateEditWithAppButton);
+        EtoPlatform.Current.AttachDpiDependency(this, UpdateRedactColor);
         ToolBar = new ToolBar
         {
             Items =
@@ -259,6 +263,7 @@ public class PreviewForm : EtoDialogBase
                 MakeToolButton(Commands.DocumentCorrection),
                 MakeToolButton(Commands.Compress),
                 WithToolItemIcon(_redactButton, "redact"),
+                _redactColorButton,
                 MakeToolButton(RedactUndoCommand),
                 MakeToolButton(RedactApplyCommand),
                 new SeparatorToolItem(),
@@ -331,11 +336,12 @@ public class PreviewForm : EtoDialogBase
         // the new transforms will be applied to. We round outwards so nothing that was covered is left visible.
         var transforms = ImageViewer.SelectionRects.Select(rect =>
         {
-            int left = (int) Math.Floor(rect.Left);
-            int top = (int) Math.Floor(rect.Top);
-            int right = (int) Math.Ceiling(rect.Right);
-            int bottom = (int) Math.Ceiling(rect.Bottom);
-            return (Transform) new RedactTransform(left, top, right - left, bottom - top, image.Width, image.Height);
+            int left = (int) Math.Floor(rect.Bounds.Left);
+            int top = (int) Math.Floor(rect.Bounds.Top);
+            int right = (int) Math.Ceiling(rect.Bounds.Right);
+            int bottom = (int) Math.Ceiling(rect.Bounds.Bottom);
+            return (Transform) new RedactTransform(left, top, right - left, bottom - top, image.Width, image.Height,
+                rect.Color == Colors.White);
         }).ToList();
         EndRedaction();
         // As the redaction is a transform, the affected pixels are overwritten whenever the image is rendered (for
@@ -348,7 +354,48 @@ public class PreviewForm : EtoDialogBase
     private void EndRedaction()
     {
         ImageViewer.ClearSelectionRects();
-        _redactButton.Checked = false;
+        SetRedactMode(false);
+    }
+
+    private void SetRedactMode(bool enabled)
+    {
+        _redactMode = enabled;
+        ImageViewer.RectSelectionEnabled = enabled;
+        // The toolbar item may toggle its own checked state when clicked (before or after this runs depending on the
+        // platform), so we also sync it after the click has been fully handled
+        SyncRedactButton();
+        Invoker.Current.InvokeDispatch(SyncRedactButton);
+    }
+
+    private void SyncRedactButton()
+    {
+        if (_redactButton.Checked != _redactMode)
+        {
+            _redactButton.Checked = _redactMode;
+        }
+    }
+
+    private void ToggleRedactColor()
+    {
+        Config.User.Set(c => c.RedactWithBlack, !Config.Get(c => c.RedactWithBlack));
+        UpdateRedactColor(EtoPlatform.Current.GetScaleFactor(this));
+    }
+
+    // Updates the color used for new redaction rectangles, and shows it as a swatch on the color button
+    private void UpdateRedactColor(float scale)
+    {
+        var color = Config.Get(c => c.RedactWithBlack) ? Colors.Black : Colors.White;
+        ImageViewer.SelectionRectColor = color;
+
+        int size = (int) (16 * scale);
+        var swatch = new Bitmap(size, size, PixelFormat.Format32bppRgba);
+        using (var graphics = new Graphics(swatch))
+        {
+            graphics.FillRectangle(color, 2, 2, size - 4, size - 4);
+            graphics.DrawRectangle(Colors.Gray, 2, 2, size - 5, size - 5);
+        }
+        EtoPlatform.Current.SetImageSize(_redactColorButton, size);
+        _redactColorButton.Image = swatch;
     }
 
     private async Task GoTo(int index)

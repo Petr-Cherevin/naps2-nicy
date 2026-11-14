@@ -96,6 +96,12 @@ public class CommonConfig
     [User]
     public bool HasBeenRun { get; set; }
 
+    /// <summary>
+    /// Whether redaction in the preview window fills with black instead of white.
+    /// </summary>
+    [User]
+    public bool RedactWithBlack { get; set; }
+
     [User]
     public DateTime? FirstRunDate { get; set; }
 

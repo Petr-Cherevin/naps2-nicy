@@ -58,6 +58,7 @@ public static class InternalDefaults
             OcrAfterScanning = true,
             OcrAutoRecognize = false,
             OcrAutoRecognizeImports = false,
+            RedactWithBlack = false,
             LastImageExt = "",
             LastPdfOrImageExt = "",
             ThumbnailSize = ThumbnailSizes.DEFAULT_SIZE,

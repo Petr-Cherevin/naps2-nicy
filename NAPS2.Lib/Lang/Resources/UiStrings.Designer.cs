@@ -2157,6 +2157,12 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string RedactColor {
+            get {
+                return ResourceManager.GetString("RedactColor", resourceCulture);
+            }
+        }
+        
         internal static string RecognizeScansOnly {
             get {
                 return ResourceManager.GetString("RecognizeScansOnly", resourceCulture);

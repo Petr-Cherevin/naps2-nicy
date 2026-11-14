@@ -1200,4 +1200,7 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="RecognizeScansAndImports" xml:space="preserve">
     <value>Scanned and Imported Pages</value>
   </data>
+  <data name="RedactColor" xml:space="preserve">
+    <value>Redaction Color</value>
+  </data>
 </root>
