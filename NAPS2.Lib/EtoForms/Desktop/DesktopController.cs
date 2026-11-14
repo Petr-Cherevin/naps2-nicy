@@ -373,21 +373,26 @@ public class DesktopController
         return filesList;
     }
 
-    internal void ImportDirect(ImageTransferData data, bool copy)
+    internal void ImportDirect(ImageTransferData data, bool copy, UiImage? insertAfter = null)
     {
         var op = _operationFactory.Create<DirectImportOperation>();
-        if (op.Start(data, copy, _desktopImagesController.ReceiveScannedImage(),
+        if (op.Start(data, copy, _desktopImagesController.ReceiveScannedImage(insertAfter),
                 new DirectImportParams { ThumbnailSize = _thumbnailController.RenderSize }))
         {
             _operationProgress.ShowProgress(op);
         }
     }
 
-    public void Paste()
+    public void Paste() => PasteAfter(null);
+
+    /// <summary>
+    /// Pastes the clipboard contents directly after the given image, or at the end of the list if null.
+    /// </summary>
+    public void PasteAfter(UiImage? insertAfter)
     {
         if (_imageTransfer.IsInClipboard())
         {
-            ImportDirect(_imageTransfer.GetFromClipboard(), true);
+            ImportDirect(_imageTransfer.GetFromClipboard(), true, insertAfter);
         }
         else if (Clipboard.Instance.ContainsImage)
         {
@@ -398,7 +403,7 @@ public class DesktopController
                 var processedImage = _scanningContext.CreateProcessedImage(image);
                 processedImage = ImportPostProcessor.AddPostProcessingData(processedImage, image,
                     _thumbnailController.RenderSize, new BarcodeDetectionOptions(), true);
-                _desktopImagesController.ReceiveScannedImage()(processedImage);
+                _desktopImagesController.ReceiveScannedImage(insertAfter)(processedImage);
             });
         }
     }

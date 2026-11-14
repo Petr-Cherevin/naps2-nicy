@@ -2072,5 +2072,89 @@ namespace NAPS2.Lang.Resources {
                 return ResourceManager.GetString("ButtonsLabel", resourceCulture);
             }
         }
+        
+        internal static string PasteAtEnd {
+            get {
+                return ResourceManager.GetString("PasteAtEnd", resourceCulture);
+            }
+        }
+        
+        internal static string MoveToPosition {
+            get {
+                return ResourceManager.GetString("MoveToPosition", resourceCulture);
+            }
+        }
+        
+        internal static string MoveToPositionFormTitle {
+            get {
+                return ResourceManager.GetString("MoveToPositionFormTitle", resourceCulture);
+            }
+        }
+        
+        internal static string NewPositionLabel {
+            get {
+                return ResourceManager.GetString("NewPositionLabel", resourceCulture);
+            }
+        }
+        
+        internal static string Recognize {
+            get {
+                return ResourceManager.GetString("Recognize", resourceCulture);
+            }
+        }
+        
+        internal static string OcrSettings {
+            get {
+                return ResourceManager.GetString("OcrSettings", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeAutomatically {
+            get {
+                return ResourceManager.GetString("RecognizeAutomatically", resourceCulture);
+            }
+        }
+        
+        internal static string RotateLeftShort {
+            get {
+                return ResourceManager.GetString("RotateLeftShort", resourceCulture);
+            }
+        }
+        
+        internal static string RotateRightShort {
+            get {
+                return ResourceManager.GetString("RotateRightShort", resourceCulture);
+            }
+        }
+        
+        internal static string Rotate180 {
+            get {
+                return ResourceManager.GetString("Rotate180", resourceCulture);
+            }
+        }
+        
+        internal static string DeskewShort {
+            get {
+                return ResourceManager.GetString("DeskewShort", resourceCulture);
+            }
+        }
+        
+        internal static string RotateButtons {
+            get {
+                return ResourceManager.GetString("RotateButtons", resourceCulture);
+            }
+        }
+        
+        internal static string Redact {
+            get {
+                return ResourceManager.GetString("Redact", resourceCulture);
+            }
+        }
+        
+        internal static string Apply {
+            get {
+                return ResourceManager.GetString("Apply", resourceCulture);
+            }
+        }
     }
 }

@@ -1035,4 +1035,46 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="ButtonsLabel" xml:space="preserve">
     <value>Buttons:</value>
   </data>
+  <data name="PasteAtEnd" xml:space="preserve">
+    <value>Вставить в конец</value>
+  </data>
+  <data name="MoveToPosition" xml:space="preserve">
+    <value>Переместить на позицию...</value>
+  </data>
+  <data name="MoveToPositionFormTitle" xml:space="preserve">
+    <value>Переместить на позицию</value>
+  </data>
+  <data name="NewPositionLabel" xml:space="preserve">
+    <value>Новая позиция (1-{0}):</value>
+  </data>
+  <data name="Recognize" xml:space="preserve">
+    <value>Распознать</value>
+  </data>
+  <data name="OcrSettings" xml:space="preserve">
+    <value>Настройки распознавания</value>
+  </data>
+  <data name="RecognizeAutomatically" xml:space="preserve">
+    <value>Автоматически распознавать</value>
+  </data>
+  <data name="RotateLeftShort" xml:space="preserve">
+    <value>Влево</value>
+  </data>
+  <data name="RotateRightShort" xml:space="preserve">
+    <value>Вправо</value>
+  </data>
+  <data name="Rotate180" xml:space="preserve">
+    <value>180°</value>
+  </data>
+  <data name="DeskewShort" xml:space="preserve">
+    <value>Перекос</value>
+  </data>
+  <data name="RotateButtons" xml:space="preserve">
+    <value>Повернуть (компактные кнопки)</value>
+  </data>
+  <data name="Redact" xml:space="preserve">
+    <value>Цензурировать</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
 </root>

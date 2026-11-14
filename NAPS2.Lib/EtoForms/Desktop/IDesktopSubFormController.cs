@@ -24,4 +24,5 @@ public interface IDesktopSubFormController
     void ShowSettingsForm();
     void ShowToolbarSettingsForm();
     void ShowManualDuplexForm();
+    void ShowMoveToPositionForm();
 }

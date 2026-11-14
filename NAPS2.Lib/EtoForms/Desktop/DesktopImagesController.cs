@@ -13,11 +13,13 @@ public class DesktopImagesController
     /// Constructs a receiver for scanned images.
     /// This keeps images from the same source together, even if multiple sources are providing images at the same time.
     /// </summary>
+    /// <param name="insertAfter">The image to insert the received images after, or null to append them to the end
+    /// of the list.</param>
     /// <returns></returns>
-    public Action<ProcessedImage> ReceiveScannedImage()
+    public Action<ProcessedImage> ReceiveScannedImage(UiImage? insertAfter = null)
     {
         var lockObj = new object();
-        UiImage? last = null;
+        UiImage? last = insertAfter;
         return scannedImage =>
         {
             lock (lockObj)

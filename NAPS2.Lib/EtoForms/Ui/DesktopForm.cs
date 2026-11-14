@@ -37,6 +37,9 @@ public abstract class DesktopForm : EtoFormBase
     protected readonly ListProvider<Command> _editWithCommands = new();
     protected readonly ListProvider<Command> _manualDuplexPreviewCommands = new();
     private readonly ContextMenu _contextMenu = new();
+    private readonly ActionCommand _pasteAfterCommand;
+    private readonly ActionCommand _pasteAtEndCommand;
+    private UiImage? _contextMenuImage;
 
     private readonly NotificationArea _notificationArea;
     protected IListView<UiImage> _listView;
@@ -83,6 +86,17 @@ public abstract class DesktopForm : EtoFormBase
         _iconProvider = iconProvider;
         _commands = commands;
         _editWithController = editWithController;
+
+        // These are specific to the context menu, where "Paste" inserts after the image that was right-clicked
+        _pasteAfterCommand = new ActionCommand(() => _desktopController.PasteAfter(_contextMenuImage))
+        {
+            Text = UiStrings.Paste,
+            IconName = "paste"
+        };
+        _pasteAtEndCommand = new ActionCommand(_desktopController.Paste)
+        {
+            Text = UiStrings.PasteAtEnd
+        };
 
         _desktopFormProvider.DesktopForm = this;
         _keyboardShortcuts.Assign(Commands);
@@ -166,10 +180,13 @@ public abstract class DesktopForm : EtoFormBase
         if (!EtoPlatform.Current.IsMac)
         {
             // TODO: Can't do this on Mac yet as it disables the menu item indefinitely
-            Commands.Paste.Enabled = _imageTransfer.IsInClipboard() || Clipboard.Instance.ContainsImage;
+            Commands.Paste.Enabled = _pasteAfterCommand.Enabled = _pasteAtEndCommand.Enabled =
+                _imageTransfer.IsInClipboard() || Clipboard.Instance.ContainsImage;
         }
         if (ImageList.Selection.Any())
         {
+            _contextMenuImage = GetContextMenuImage();
+            Commands.MoveToPosition.Enabled = ImageList.Selection.Count < ImageList.Images.Count;
             // TODO: Is this memory leaking (because of event handlers) when commands are converted to menuitems?
             _contextMenu.Items.AddRange(
             [
@@ -177,7 +194,10 @@ public abstract class DesktopForm : EtoFormBase
                 new SeparatorMenuItem(),
                 C.ButtonMenuItem(this, Commands.SelectAll),
                 C.ButtonMenuItem(this, Commands.Copy),
-                C.ButtonMenuItem(this, Commands.Paste),
+                C.ButtonMenuItem(this, _pasteAfterCommand),
+                C.ButtonMenuItem(this, _pasteAtEndCommand),
+                new SeparatorMenuItem(),
+                C.ButtonMenuItem(this, Commands.MoveToPosition),
                 new SeparatorMenuItem(),
                 C.ButtonMenuItem(this, Commands.Undo),
                 C.ButtonMenuItem(this, Commands.Redo),
@@ -196,6 +216,16 @@ public abstract class DesktopForm : EtoFormBase
                 C.ButtonMenuItem(this, Commands.Redo)
             ]);
         }
+    }
+
+    /// <summary>
+    /// Gets the image that the context menu was opened on. If the platform can't tell us which one it was, we fall back
+    /// to the last selected image.
+    /// </summary>
+    protected virtual UiImage? GetContextMenuImage()
+    {
+        var selection = ImageList.Selection;
+        return ImageList.Images.LastOrDefault(selection.Contains);
     }
 
     private void ImageList_SelectionChanged(object? sender, EventArgs e)

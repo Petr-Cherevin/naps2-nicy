@@ -236,6 +236,10 @@ public class DesktopCommands
             Text = UiStrings.MoveDown,
             IconName = "arrow_down"
         };
+        MoveToPosition = new ActionCommand(desktopSubFormController.ShowMoveToPositionForm)
+        {
+            Text = UiStrings.MoveToPosition
+        };
         ReorderMenu = new ActionCommand
         {
             Text = UiStrings.Reorder,
@@ -429,6 +433,7 @@ public class DesktopCommands
     public ActionCommand CustomRotate { get; set; }
     public ActionCommand MoveUp { get; set; }
     public ActionCommand MoveDown { get; set; }
+    public ActionCommand MoveToPosition { get; set; }
     public ActionCommand ReorderMenu { get; set; }
     public ActionCommand Interleave { get; set; }
     public ActionCommand Deinterleave { get; set; }

@@ -1152,4 +1152,46 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="ButtonsLabel" xml:space="preserve">
     <value>Buttons:</value>
   </data>
+  <data name="PasteAtEnd" xml:space="preserve">
+    <value>Paste at End</value>
+  </data>
+  <data name="MoveToPosition" xml:space="preserve">
+    <value>Move to Position...</value>
+  </data>
+  <data name="MoveToPositionFormTitle" xml:space="preserve">
+    <value>Move to Position</value>
+  </data>
+  <data name="NewPositionLabel" xml:space="preserve">
+    <value>New position (1-{0}):</value>
+  </data>
+  <data name="Recognize" xml:space="preserve">
+    <value>Recognize</value>
+  </data>
+  <data name="OcrSettings" xml:space="preserve">
+    <value>OCR Settings</value>
+  </data>
+  <data name="RecognizeAutomatically" xml:space="preserve">
+    <value>Recognize Automatically</value>
+  </data>
+  <data name="RotateLeftShort" xml:space="preserve">
+    <value>Left</value>
+  </data>
+  <data name="RotateRightShort" xml:space="preserve">
+    <value>Right</value>
+  </data>
+  <data name="Rotate180" xml:space="preserve">
+    <value>180°</value>
+  </data>
+  <data name="DeskewShort" xml:space="preserve">
+    <value>Deskew</value>
+  </data>
+  <data name="RotateButtons" xml:space="preserve">
+    <value>Rotate (compact buttons)</value>
+  </data>
+  <data name="Redact" xml:space="preserve">
+    <value>Redact</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
 </root>

@@ -121,6 +121,26 @@ public class ListMutationTests
     }
 
     [Theory]
+    [InlineData(new[] { "e" }, 1, new[] { "a", "e", "b", "c", "d", "f", "g", "h", "i", "j" })]
+    [InlineData(new[] { "b" }, 6, new[] { "a", "c", "d", "e", "f", "g", "b", "h", "i", "j" })]
+    [InlineData(new[] { "b", "e", "h" }, 3, new[] { "a", "c", "d", "b", "e", "h", "f", "g", "i", "j" })]
+    [InlineData(new[] { "h", "b" }, 7, new[] { "a", "c", "d", "e", "f", "g", "i", "b", "h", "j" })]
+    [InlineData(new[] { "c", "d" }, 0, new[] { "c", "d", "a", "b", "e", "f", "g", "h", "i", "j" })]
+    [InlineData(new[] { "a" }, 100, new[] { "b", "c", "d", "e", "f", "g", "h", "i", "j", "a" })]
+    [InlineData(new[] { "c" }, 2, new[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" })]
+    [InlineData(new string[0], 4, new[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" })]
+    public void MoveToPosition(string[] selected, int position, string[] expected)
+    {
+        var list = new List<string> { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" };
+        var sel = ListSelection.From(selected);
+
+        new ListMutation<string>.MoveToPosition(position).Apply(list, ref sel);
+
+        Assert.Equal(expected, list);
+        CollectionAsserts.SameItems(sel, selected);
+    }
+
+    [Theory]
     [InlineData(new string[0], new string[0])]
     [InlineData(new[] { "1" }, new[] { "1" })]
     [InlineData(new[] { "1", "3", "5", "2", "4", "6" }, new[] { "1", "2", "3", "4", "5", "6" })]

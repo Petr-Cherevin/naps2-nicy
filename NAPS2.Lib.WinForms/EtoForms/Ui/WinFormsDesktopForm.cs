@@ -124,6 +124,17 @@ public class WinFormsDesktopForm : DesktopForm
 
     private WF.ListView NativeListView => ((WinFormsListView<UiImage>) _listView).NativeControl;
 
+    protected override UiImage? GetContextMenuImage()
+    {
+        // Right-clicking an item gives it focus, so the focused item is the one the context menu was opened on
+        var images = ImageList.Images;
+        if (NativeListView.FocusedItem is { Selected: true, Index: var index } && index >= 0 && index < images.Count)
+        {
+            return images[index];
+        }
+        return base.GetContextMenuImage();
+    }
+
     protected override void RecreateToolbarsAndMenus()
     {
         base.RecreateToolbarsAndMenus();

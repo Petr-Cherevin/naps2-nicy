@@ -96,6 +96,26 @@ public abstract class ListMutation<T> where T : notnull
     }
 
     /// <summary>
+    /// Moves the selection so that it forms a contiguous block starting at the specified (zero-based) index of the
+    /// resulting list. The selected items keep their relative order from the list (regardless of selection order), as
+    /// do the unselected items.
+    /// </summary>
+    public class MoveToPosition(int position) : ListMutation<T>
+    {
+        public override void Apply(List<T> list, ref ListSelection<T> selection)
+        {
+            var currentSelection = selection;
+            var moved = list.Where(currentSelection.Contains).ToList();
+            if (moved.Count == 0)
+            {
+                return;
+            }
+            list.RemoveAll(currentSelection.Contains);
+            list.InsertRange(Math.Max(0, Math.Min(position, list.Count)), moved);
+        }
+    }
+
+    /// <summary>
     /// Converts lists in the order 1,3,5,2,4,6 to 1,2,3,4,5,6.
     /// </summary>
     public class ManualDuplex(bool reverseBackSides) : ListMutation<T>

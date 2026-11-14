@@ -64,6 +64,15 @@ public class DesktopSubFormController : IDesktopSubFormController
         _formFactory.Create<ManualDuplexForm>().ShowModal();
     }
 
+    public void ShowMoveToPositionForm()
+    {
+        var selection = Selection;
+        if (!selection.Any()) return;
+        var form = _formFactory.Create<MoveToPositionForm>();
+        form.SelectedImages = selection.ToList();
+        form.ShowModal();
+    }
+
     public void ShowProfilesForm()
     {
         var form = _formFactory.Create<ProfilesForm>();
