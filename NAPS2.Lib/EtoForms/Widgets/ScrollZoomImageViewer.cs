@@ -15,9 +15,17 @@ public class ScrollZoomImageViewer
     private PointF? _initialMousePos;
     private Point? _initialScrollPos;
     private bool _mouseIsDown;
+    // Selection rectangles are in image pixel coordinates so they're independent of zoom and scroll position
+    private readonly List<RectangleF> _selectionRects = [];
+    private bool _rectSelectionEnabled;
+    private PointF? _rectOrigin;
+    private RectangleF? _activeRect;
 
     public ScrollZoomImageViewer()
     {
+        _imageView.MouseDown += OnImageMouseDown;
+        _imageView.MouseMove += OnImageMouseMove;
+        _imageView.MouseUp += OnImageMouseUp;
         _scrollable.Content = _imageView;
         _scrollable.BackgroundColor = Colors.White;
         _imageView.Paint += ImagePaint;
@@ -39,6 +47,55 @@ public class ScrollZoomImageViewer
     public ColorScheme? ColorScheme { get; set; }
 
     public event EventHandler<ZoomChangedEventArgs>? ZoomChanged;
+
+    /// <summary>
+    /// Gets or sets whether dragging the mouse over the image draws a selection rectangle (instead of panning).
+    /// </summary>
+    public bool RectSelectionEnabled
+    {
+        get => _rectSelectionEnabled;
+        set
+        {
+            _rectSelectionEnabled = value;
+            _rectOrigin = null;
+            _activeRect = null;
+            _mouseIsDown = false;
+            _imageView.Cursor = value ? Cursors.Crosshair : _scrollable.Cursor;
+            _imageView.Invalidate();
+        }
+    }
+
+    /// <summary>
+    /// Gets the selection rectangles that have been drawn, in image pixel coordinates. These are rendered over the
+    /// image as solid rectangles.
+    /// </summary>
+    public IReadOnlyList<RectangleF> SelectionRects => _selectionRects;
+
+    public Color SelectionRectColor { get; set; } = Colors.Black;
+
+    public event EventHandler? SelectionRectsChanged;
+
+    public void RemoveLastSelectionRect()
+    {
+        if (_selectionRects.Count == 0) return;
+        _selectionRects.RemoveAt(_selectionRects.Count - 1);
+        OnSelectionRectsChanged();
+    }
+
+    public void ClearSelectionRects()
+    {
+        _rectOrigin = null;
+        _activeRect = null;
+        if (_selectionRects.Count == 0) return;
+        _selectionRects.Clear();
+        OnSelectionRectsChanged();
+    }
+
+    private void OnSelectionRectsChanged()
+    {
+        _imageView.Invalidate();
+        SelectionRectsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     private Size RenderSize
     {
@@ -80,6 +137,11 @@ public class ScrollZoomImageViewer
 
     private void OnMouseDown(object? sender, MouseEventArgs e)
     {
+        if (_rectSelectionEnabled)
+        {
+            // Dragging draws a rectangle rather than panning
+            return;
+        }
         _mouseIsDown = true;
         _initialMousePos = e.Location;
         _initialScrollPos = _scrollable.ScrollPosition;
@@ -97,6 +159,51 @@ public class ScrollZoomImageViewer
     private void OnMouseLeave(object? sender, MouseEventArgs e)
     {
         _mousePos = null;
+    }
+
+    // Converts a point relative to the image view control to image pixel coordinates (clamped to the image bounds)
+    private PointF ToImagePoint(PointF viewPoint)
+    {
+        var x = (viewPoint.X - XOffset) * Image!.Width / RenderSize.Width;
+        var y = (viewPoint.Y - YOffset) * Image.Height / RenderSize.Height;
+        return new PointF(Math.Max(0, Math.Min(x, Image.Width)), Math.Max(0, Math.Min(y, Image.Height)));
+    }
+
+    private static RectangleF RectFromPoints(PointF a, PointF b) =>
+        new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(a.X - b.X), Math.Abs(a.Y - b.Y));
+
+    private bool CanSelectRect => _rectSelectionEnabled && Image != null && RenderSize.Width > 0 && RenderSize.Height > 0;
+
+    private void OnImageMouseDown(object? sender, MouseEventArgs e)
+    {
+        if (!CanSelectRect || e.Buttons != MouseButtons.Primary) return;
+        _rectOrigin = ToImagePoint(e.Location);
+        _activeRect = null;
+    }
+
+    private void OnImageMouseMove(object? sender, MouseEventArgs e)
+    {
+        if (!CanSelectRect || _rectOrigin is not { } origin) return;
+        _activeRect = RectFromPoints(origin, ToImagePoint(e.Location));
+        _imageView.Invalidate();
+    }
+
+    private void OnImageMouseUp(object? sender, MouseEventArgs e)
+    {
+        if (!CanSelectRect || _rectOrigin is not { } origin) return;
+        var rect = RectFromPoints(origin, ToImagePoint(e.Location));
+        _rectOrigin = null;
+        _activeRect = null;
+        // Ignore accidental clicks that don't cover at least a pixel
+        if (rect.Width >= 1 && rect.Height >= 1)
+        {
+            _selectionRects.Add(rect);
+            OnSelectionRectsChanged();
+        }
+        else
+        {
+            _imageView.Invalidate();
+        }
     }
 
     private void OnMouseWheel(object? sender, MouseEventArgs e)
@@ -118,7 +225,23 @@ public class ScrollZoomImageViewer
                 ColorScheme?.BorderColor ?? Colors.Black,
                 XOffset - 1, YOffset - 1, RenderSize.Width + 1, RenderSize.Height + 1);
             e.Graphics.DrawImage(Image, XOffset, YOffset, RenderSize.Width, RenderSize.Height);
+            foreach (var rect in _selectionRects)
+            {
+                FillSelectionRect(e.Graphics, rect);
+            }
+            if (_activeRect is { } activeRect)
+            {
+                FillSelectionRect(e.Graphics, activeRect);
+            }
         }
+    }
+
+    private void FillSelectionRect(Graphics graphics, RectangleF rect)
+    {
+        float xScale = RenderSize.Width / (float) Image!.Width;
+        float yScale = RenderSize.Height / (float) Image.Height;
+        graphics.FillRectangle(SelectionRectColor,
+            XOffset + rect.X * xScale, YOffset + rect.Y * yScale, rect.Width * xScale, rect.Height * yScale);
     }
 
     public float ZoomFactor => _renderFactor;

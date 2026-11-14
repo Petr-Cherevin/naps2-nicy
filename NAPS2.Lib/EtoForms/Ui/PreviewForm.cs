@@ -15,6 +15,7 @@ public class PreviewForm : EtoDialogBase
     private readonly ButtonToolItem _pageNumberButton = new();
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
+    private readonly CheckToolItem _redactButton = new() { ToolTip = UiStrings.Redact };
     private UiImage? _currentImage;
 
     public PreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
@@ -31,6 +32,8 @@ public class PreviewForm : EtoDialogBase
 
         ImageViewer.ColorScheme = colorScheme;
         ImageViewer.ZoomChanged += ImageViewerZoomChanged;
+        ImageViewer.SelectionRectsChanged += (_, _) => UpdateRedactCommands();
+        _redactButton.CheckedChanged += (_, _) => ImageViewer.RectSelectionEnabled = _redactButton.Checked;
         ImageList.ImagesUpdated += ImageList_ImagesUpdated;
         _editWithController.AppChanged += EditWithController_AppChanged;
 
@@ -69,6 +72,20 @@ public class PreviewForm : EtoDialogBase
         {
             Text = UiStrings.Delete,
             IconName = "cross"
+        };
+        // Redaction is a two-step process: rectangles are drawn as a preview (and can be undone one at a time), then
+        // they only affect the actual image once applied. Unapplied rectangles are discarded.
+        RedactUndoCommand = new ActionCommand(ImageViewer.RemoveLastSelectionRect)
+        {
+            Text = UiStrings.Undo,
+            IconName = "undo",
+            Enabled = false
+        };
+        RedactApplyCommand = new ActionCommand(ApplyRedaction)
+        {
+            Text = UiStrings.Apply,
+            IconName = "accept",
+            Enabled = false
         };
 
         _previewKsm = new KeyboardShortcutManager();
@@ -148,6 +165,8 @@ public class PreviewForm : EtoDialogBase
     protected ActionCommand ZoomOutCommand { get; }
     protected ActionCommand ZoomWindowCommand { get; }
     protected ActionCommand ZoomActualCommand { get; }
+    protected ActionCommand RedactUndoCommand { get; }
+    protected ActionCommand RedactApplyCommand { get; }
 
     protected UiImageList ImageList { get; }
 
@@ -159,6 +178,11 @@ public class PreviewForm : EtoDialogBase
             if (_currentImage != null)
             {
                 _currentImage.ThumbnailInvalidated -= ImageThumbnailInvalidated;
+            }
+            if (_currentImage != value)
+            {
+                // Unapplied redaction rectangles only make sense for the image they were drawn on
+                ImageViewer.ClearSelectionRects();
             }
             _currentImage = value;
             UpdateImageIndex();
@@ -234,6 +258,9 @@ public class PreviewForm : EtoDialogBase
                 MakeToolButton(Commands.Sharpen),
                 MakeToolButton(Commands.DocumentCorrection),
                 MakeToolButton(Commands.Compress),
+                WithToolItemIcon(_redactButton, "redact"),
+                MakeToolButton(RedactUndoCommand),
+                MakeToolButton(RedactApplyCommand),
                 new SeparatorToolItem(),
                 MakeToolButton(Commands.Split),
                 MakeToolButton(Commands.Combine),
@@ -288,6 +315,42 @@ public class PreviewForm : EtoDialogBase
         return toolItem;
     }
 
+    private void UpdateRedactCommands()
+    {
+        RedactUndoCommand.Enabled = RedactApplyCommand.Enabled = ImageViewer.SelectionRects.Count > 0;
+    }
+
+    private void ApplyRedaction()
+    {
+        var image = ImageViewer.Image;
+        if (image == null || ImageViewer.SelectionRects.Count == 0)
+        {
+            return;
+        }
+        // The rectangles are relative to the rendered image (i.e. after all current transforms), which is also what
+        // the new transforms will be applied to. We round outwards so nothing that was covered is left visible.
+        var transforms = ImageViewer.SelectionRects.Select(rect =>
+        {
+            int left = (int) Math.Floor(rect.Left);
+            int top = (int) Math.Floor(rect.Top);
+            int right = (int) Math.Ceiling(rect.Right);
+            int bottom = (int) Math.Ceiling(rect.Bottom);
+            return (Transform) new RedactTransform(left, top, right - left, bottom - top, image.Width, image.Height);
+        }).ToList();
+        EndRedaction();
+        // As the redaction is a transform, the affected pixels are overwritten whenever the image is rendered (for
+        // display, saving, OCR, etc). An imported PDF page with a transform is exported as a rendered image rather
+        // than by copying the original PDF page, and cached OCR results are keyed on the transform state, so the
+        // redacted content doesn't end up in exported files.
+        ImageList.Mutate(new ImageListMutation.AddTransforms(transforms), ListSelection.Of(CurrentImage));
+    }
+
+    private void EndRedaction()
+    {
+        ImageViewer.ClearSelectionRects();
+        _redactButton.Checked = false;
+    }
+
     private async Task GoTo(int index)
     {
         lock (ImageList)
@@ -312,6 +375,8 @@ public class PreviewForm : EtoDialogBase
     {
         using var imageToRender = CurrentImage.GetClonedImage();
         using var rendered = await Task.Run(() => imageToRender.Render());
+        // Any unapplied redaction was for the previous image (or the previous state of this image)
+        ImageViewer.ClearSelectionRects();
         ImageViewer.Image?.Dispose();
         ImageViewer.Image = rendered.ToEtoImage();
         ImageViewer.ZoomToContainer();

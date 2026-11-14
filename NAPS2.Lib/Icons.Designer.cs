@@ -2008,5 +2008,25 @@ namespace NAPS2 {
                 return ((byte[])(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] redact_32 {
+            get {
+                object obj = ResourceManager.GetObject("redact_32", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] redact_16 {
+            get {
+                object obj = ResourceManager.GetObject("redact_16", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }
