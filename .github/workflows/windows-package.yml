@@ -1,0 +1,28 @@
+name: Windows package
+
+# Builds the portable Windows x64 zip for the custom-improvements branch so it can be downloaded from the workflow run.
+on:
+  push:
+    branches: [custom-improvements]
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: |
+          10.0.x
+          11.0.x
+    - name: Package portable zip
+      run: dotnet run --project NAPS2.Tools -- pkg zip -p win64 --nosign -v
+    - name: Upload portable zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: naps2-portable-win-x64
+        path: NAPS2.Setup/publish/**/*.zip
+        if-no-files-found: error
