@@ -62,7 +62,7 @@ internal class EditWithForm : EtoDialogBase
             Title = PreviewEditingText.ChooseExecutable,
             CheckFileExists = true,
             MultiSelect = false,
-            Filters = { new FileFilter(PreviewEditingText.ExecutableFiles, "*.exe") }
+            Filters = { new FileFilter(PreviewEditingText.ExecutableFiles, ".exe") }
         };
         if (dialog.ShowDialog(this) != DialogResult.Ok || string.IsNullOrEmpty(dialog.FileName))
         {

@@ -42,6 +42,7 @@ public class PreviewForm : EtoDialogBase
         _editWithController = editWithController;
 
         ImageViewer.ColorScheme = colorScheme;
+        ImageViewer.OutlineMode = config.Get(c => c.RedactionOutlineMode);
         ImageViewer.ZoomChanged += ImageViewerZoomChanged;
         ImageViewer.SelectionRectsChanged += (_, _) => UpdateRedactCommands();
         _redactButton.Click += (_, _) => SetRedactMode(!_redactMode);
@@ -461,6 +462,7 @@ public class PreviewForm : EtoDialogBase
         ImageViewer.ClearSelectionRects();
         ImageViewer.Image?.Dispose();
         ImageViewer.Image = rendered.ToEtoImage();
+        ImageViewer.OutlineMode = Config.Get(c => c.RedactionOutlineMode);
         ImageViewer.ZoomToContainer();
         if (_textVisibility.IsVisible)
         {

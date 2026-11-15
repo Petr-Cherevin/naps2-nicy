@@ -73,6 +73,21 @@ public class ScrollZoomImageViewer
     /// </summary>
     public Color SelectionRectColor { get; set; } = Colors.Black;
 
+    /// <summary>
+    /// How the selection overlay shows its outline. This never changes the image or exported redaction.
+    /// </summary>
+    public RedactionOutlineMode OutlineMode
+    {
+        get => _outlineMode;
+        set
+        {
+            _outlineMode = value;
+            _imageView.Invalidate();
+        }
+    }
+
+    private RedactionOutlineMode _outlineMode = RedactionOutlineMode.DuringDrag;
+
     public record struct SelectionRect(RectangleF Bounds, Color Color);
 
     public event EventHandler? SelectionRectsChanged;
@@ -231,6 +246,73 @@ public class ScrollZoomImageViewer
             if (_activeRect is { } activeRect)
             {
                 DrawSelectionRect(e.Graphics, activeRect, SelectionRectColor);
+            }
+
+            if (OutlineMode == RedactionOutlineMode.DuringDrag && _activeRect is { } dragging)
+            {
+                DrawSelectionOutline(e.Graphics, dragging);
+            }
+            else if (OutlineMode == RedactionOutlineMode.UntilApply)
+            {
+                // Draw only the outside edge of the union. This avoids rectangles inside rectangles
+                // and interior outlines where multiple redactions overlap.
+                var rectangles = _selectionRects.Select(r => r.Bounds).ToList();
+                if (_activeRect is { } active)
+                {
+                    rectangles.Add(active);
+                }
+                DrawCombinedOutline(e.Graphics, rectangles);
+            }
+        }
+    }
+
+    private void DrawSelectionOutline(Graphics graphics, RectangleF rect)
+    {
+        float scaleX = RenderSize.Width / (float) Image!.Width;
+        float scaleY = RenderSize.Height / (float) Image.Height;
+        float x = XOffset + rect.Left * scaleX;
+        float y = YOffset + rect.Top * scaleY;
+        float w = rect.Width * scaleX;
+        float h = rect.Height * scaleY;
+        // Render the guide only in the viewer; the original pixels and exported PDF remain untouched.
+        graphics.DrawRectangle(Colors.White, x, y, w, h);
+        graphics.DrawRectangle(Colors.Black, x - 1, y - 1, w + 2, h + 2);
+    }
+
+    private void DrawCombinedOutline(Graphics graphics, List<RectangleF> rectangles)
+    {
+        if (rectangles.Count == 0) return;
+        var xs = rectangles.SelectMany(r => new[] { r.Left, r.Right }).Distinct().OrderBy(x => x).ToArray();
+        var ys = rectangles.SelectMany(r => new[] { r.Top, r.Bottom }).Distinct().OrderBy(y => y).ToArray();
+        if (xs.Length < 2 || ys.Length < 2) return;
+
+        // For each grid segment, draw a border only when exactly one side is covered.
+        // The geometry is the union of the filled selection rectangles, not their bounding box.
+        bool Inside(float x, float y) => rectangles.Any(r => x > r.Left && x < r.Right && y > r.Top && y < r.Bottom);
+        float sx = RenderSize.Width / (float) Image!.Width;
+        float sy = RenderSize.Height / (float) Image.Height;
+        const float thickness = 2f;
+
+        for (int i = 0; i < xs.Length; i++)
+        {
+            float x = xs[i];
+            for (int j = 0; j + 1 < ys.Length; j++)
+            {
+                float midY = (ys[j] + ys[j + 1]) / 2;
+                if (Inside(x - 0.01f, midY) == Inside(x + 0.01f, midY)) continue;
+                graphics.FillRectangle(Colors.White, XOffset + x * sx - thickness / 2,
+                    YOffset + ys[j] * sy, thickness, Math.Max(1, (ys[j + 1] - ys[j]) * sy));
+            }
+        }
+        for (int j = 0; j < ys.Length; j++)
+        {
+            float y = ys[j];
+            for (int i = 0; i + 1 < xs.Length; i++)
+            {
+                float midX = (xs[i] + xs[i + 1]) / 2;
+                if (Inside(midX, y - 0.01f) == Inside(midX, y + 0.01f)) continue;
+                graphics.FillRectangle(Colors.White, XOffset + xs[i] * sx,
+                    YOffset + y * sy - thickness / 2, Math.Max(1, (xs[i + 1] - xs[i]) * sx), thickness);
             }
         }
     }
