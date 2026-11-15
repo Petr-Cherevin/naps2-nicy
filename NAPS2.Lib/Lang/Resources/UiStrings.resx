@@ -1215,4 +1215,43 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="MoveDownShort" xml:space="preserve">
     <value>Down</value>
   </data>
+  <data name="PreviewToolbar" xml:space="preserve">
+    <value>Preview Toolbar</value>
+  </data>
+  <data name="PageNumber" xml:space="preserve">
+    <value>Page Number</value>
+  </data>
+  <data name="ZoomPercent" xml:space="preserve">
+    <value>Zoom Percentage</value>
+  </data>
+  <data name="SeparatorItem" xml:space="preserve">
+    <value>— Separator —</value>
+  </data>
+  <data name="EditWithLastApp" xml:space="preserve">
+    <value>Edit with Last Used App</value>
+  </data>
+  <data name="ShowHide" xml:space="preserve">
+    <value>Show/Hide</value>
+  </data>
+  <data name="ShowText" xml:space="preserve">
+    <value>Show Text</value>
+  </data>
+  <data name="CopyText" xml:space="preserve">
+    <value>Copy Text</value>
+  </data>
+  <data name="RecognizeAgain" xml:space="preserve">
+    <value>Recognize Again</value>
+  </data>
+  <data name="PageNotRecognizedPrompt" xml:space="preserve">
+    <value>This page hasn't been recognized. Recognize it now?</value>
+  </data>
+  <data name="PageChangedTextPrompt" xml:space="preserve">
+    <value>This page has been changed, so the text may be displayed incorrectly.</value>
+  </data>
+  <data name="PageRedactedTextPrompt" xml:space="preserve">
+    <value>This page has been redacted, so the original text can't be shown. Recognize it again?</value>
+  </data>
+  <data name="NoTextFound" xml:space="preserve">
+    <value>No text was found on this page.</value>
+  </data>
 </root>

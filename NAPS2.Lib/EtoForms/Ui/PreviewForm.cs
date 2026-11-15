@@ -1,7 +1,9 @@
 using Eto.Drawing;
 using Eto.Forms;
 using NAPS2.EtoForms.Desktop;
+using NAPS2.EtoForms.Layout;
 using NAPS2.EtoForms.Widgets;
+using NAPS2.Ocr;
 
 namespace NAPS2.EtoForms.Ui;
 
@@ -15,14 +17,19 @@ public class PreviewForm : EtoDialogBase
     private readonly ButtonToolItem _pageNumberButton = new();
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
+    private readonly PageTextProvider _pageTextProvider;
+    private readonly PageTextView _textView = new();
+    private readonly LayoutVisibility _textVisibility = new(false);
     private readonly CheckToolItem _redactButton = new() { ToolTip = UiStrings.Redact };
     private readonly ButtonToolItem _redactColorButton = new() { ToolTip = UiStrings.RedactColor };
     private bool _redactMode;
     private UiImage? _currentImage;
 
     public PreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
-        IIconProvider iconProvider, ColorScheme colorScheme, EditWithController editWithController) : base(config)
+        IIconProvider iconProvider, ColorScheme colorScheme, EditWithController editWithController,
+        PageTextProvider pageTextProvider) : base(config)
     {
+        _pageTextProvider = pageTextProvider;
         Title = UiStrings.PreviewFormTitle;
         Icon = EtoPlatform.Current.IsGtk ? new Icon(1f, Icons.scanner_128.ToEtoImage()) : Icons.favicon.ToEtoIcon();
         Maximizable = true;
@@ -88,6 +95,17 @@ public class PreviewForm : EtoDialogBase
         {
             Text = UiStrings.Apply,
             IconName = "accept",
+            Enabled = false
+        };
+        ShowTextCommand = new ActionCommand(ToggleText)
+        {
+            Text = UiStrings.ShowText,
+            IconName = "text"
+        };
+        CopyTextCommand = new ActionCommand(CopyText)
+        {
+            Text = UiStrings.CopyText,
+            IconName = "copy",
             Enabled = false
         };
 
@@ -157,7 +175,11 @@ public class PreviewForm : EtoDialogBase
         FormStateController.DefaultClientSize = new Size(800, 600);
 
         LayoutController.RootPadding = 0;
-        LayoutController.Content = ImageViewer;
+        // The text view is only shown (to the right of the image) when the user asks for it
+        LayoutController.Content = L.Row(
+            ImageViewer.Scale(),
+            _textView.Scale().Visible(_textVisibility)
+        );
     }
 
     protected DesktopCommands Commands { get; set; } = null!;
@@ -170,6 +192,8 @@ public class PreviewForm : EtoDialogBase
     protected ActionCommand ZoomActualCommand { get; }
     protected ActionCommand RedactUndoCommand { get; }
     protected ActionCommand RedactApplyCommand { get; }
+    protected ActionCommand ShowTextCommand { get; }
+    protected ActionCommand CopyTextCommand { get; }
 
     protected UiImageList ImageList { get; }
 
@@ -228,63 +252,63 @@ public class PreviewForm : EtoDialogBase
     {
         EtoPlatform.Current.AttachDpiDependency(this, UpdateEditWithAppButton);
         EtoPlatform.Current.AttachDpiDependency(this, UpdateRedactColor);
-        ToolBar = new ToolBar
+        var items = new Dictionary<string, ToolItem>
         {
-            Items =
+            // TODO: Either embed an editable textbox, or make this button pop up a window or widget to enter a page number
+            [PreviewToolbarLayout.PageNumber] = _pageNumberButton,
+            [PreviewToolbarLayout.Previous] = MakeToolButton(GoToPrevCommand),
+            [PreviewToolbarLayout.Next] = MakeToolButton(GoToNextCommand),
+            [PreviewToolbarLayout.ZoomWindow] = MakeToolButton(ZoomWindowCommand),
+            [PreviewToolbarLayout.ZoomActual] = MakeToolButton(ZoomActualCommand),
+            [PreviewToolbarLayout.ZoomIn] = MakeToolButton(ZoomInCommand),
+            [PreviewToolbarLayout.ZoomOut] = MakeToolButton(ZoomOutCommand),
+            [PreviewToolbarLayout.ZoomPercent] = _zoomPercentButton,
+            [PreviewToolbarLayout.Rotate] = WithToolItemIcon(new DropDownToolItem
             {
-                // TODO: Either embed an editable textbox, or make this button pop up a window or widget to enter a page number
-                _pageNumberButton,
-                MakeToolButton(GoToPrevCommand),
-                MakeToolButton(GoToNextCommand),
-                new SeparatorToolItem(),
-                MakeToolButton(ZoomWindowCommand),
-                MakeToolButton(ZoomActualCommand),
-                MakeToolButton(ZoomInCommand),
-                MakeToolButton(ZoomOutCommand),
-                _zoomPercentButton,
-                new SeparatorToolItem(),
-                WithToolItemIcon(new DropDownToolItem
+                ToolTip = UiStrings.Rotate,
+                Items =
                 {
-                    ToolTip = UiStrings.Rotate,
-                    Items =
-                    {
-                        Commands.RotateLeft,
-                        Commands.RotateRight,
-                        Commands.Flip,
-                        Commands.Deskew,
-                        Commands.CustomRotate
-                    }
-                }, "arrow_rotate_anticlockwise"),
-                MakeToolButton(Commands.Crop),
-                MakeToolButton(Commands.BrightCont),
-                MakeToolButton(Commands.HueSat),
-                MakeToolButton(Commands.BlackWhite),
-                MakeToolButton(Commands.Sharpen),
-                MakeToolButton(Commands.DocumentCorrection),
-                MakeToolButton(Commands.Compress),
-                WithToolItemIcon(_redactButton, "redact"),
-                _redactColorButton,
-                MakeToolButton(RedactUndoCommand),
-                MakeToolButton(RedactApplyCommand),
-                new SeparatorToolItem(),
-                MakeToolButton(Commands.Split),
-                MakeToolButton(Commands.Combine),
-                _editWithAppButton,
-                MakeToolButton(Commands.EditWithPick),
-                new SeparatorToolItem(),
-                MakeToolButton(Commands.SaveSelectedPdf, "file_extension_pdf"),
-                MakeToolButton(Commands.SaveSelectedImages, "picture"),
-                new SeparatorToolItem(),
-                MakeToolButton(DeleteCurrentImageCommand),
-            }
+                    Commands.RotateLeft,
+                    Commands.RotateRight,
+                    Commands.Flip,
+                    Commands.Deskew,
+                    Commands.CustomRotate
+                }
+            }, "arrow_rotate_anticlockwise"),
+            [PreviewToolbarLayout.Crop] = MakeToolButton(Commands.Crop),
+            [PreviewToolbarLayout.BrightCont] = MakeToolButton(Commands.BrightCont),
+            [PreviewToolbarLayout.HueSat] = MakeToolButton(Commands.HueSat),
+            [PreviewToolbarLayout.BlackWhite] = MakeToolButton(Commands.BlackWhite),
+            [PreviewToolbarLayout.Sharpen] = MakeToolButton(Commands.Sharpen),
+            [PreviewToolbarLayout.DocumentCorrection] = MakeToolButton(Commands.DocumentCorrection),
+            [PreviewToolbarLayout.Compress] = MakeToolButton(Commands.Compress),
+            [PreviewToolbarLayout.Redact] = WithToolItemIcon(_redactButton, "redact"),
+            [PreviewToolbarLayout.RedactColor] = _redactColorButton,
+            [PreviewToolbarLayout.RedactUndo] = MakeToolButton(RedactUndoCommand),
+            [PreviewToolbarLayout.RedactApply] = MakeToolButton(RedactApplyCommand),
+            [PreviewToolbarLayout.ShowText] = MakeToolButton(ShowTextCommand),
+            [PreviewToolbarLayout.CopyText] = MakeToolButton(CopyTextCommand),
+            [PreviewToolbarLayout.Split] = MakeToolButton(Commands.Split),
+            [PreviewToolbarLayout.Combine] = MakeToolButton(Commands.Combine),
+            [PreviewToolbarLayout.EditWithApp] = _editWithAppButton,
+            [PreviewToolbarLayout.EditWithPick] = MakeToolButton(Commands.EditWithPick),
+            [PreviewToolbarLayout.Delete] = MakeToolButton(DeleteCurrentImageCommand)
         };
-        if (Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SavePdf))
+        if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SavePdf))
         {
-            ToolBar.Items.Remove(ToolBar.Items.Single(x => x.Command == Commands.SaveSelectedPdf));
+            items[PreviewToolbarLayout.SavePdf] = MakeToolButton(Commands.SaveSelectedPdf, "file_extension_pdf");
         }
-        if (Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SaveImages))
+        if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SaveImages))
         {
-            ToolBar.Items.Remove(ToolBar.Items.Single(x => x.Command == Commands.SaveSelectedImages));
+            items[PreviewToolbarLayout.SaveImages] = MakeToolButton(Commands.SaveSelectedImages, "picture");
+        }
+
+        // The order and visibility of the buttons can be customized by the user
+        ToolBar = new ToolBar();
+        var layout = PreviewToolbarLayout.Parse(Config.Get(c => c.PreviewToolbarLayout));
+        foreach (var id in PreviewToolbarLayout.GetDisplayedIds(layout, items.ContainsKey))
+        {
+            ToolBar.Items.Add(PreviewToolbarLayout.IsSeparator(id) ? new SeparatorToolItem() : items[id]);
         }
     }
 
@@ -427,6 +451,126 @@ public class PreviewForm : EtoDialogBase
         ImageViewer.Image?.Dispose();
         ImageViewer.Image = rendered.ToEtoImage();
         ImageViewer.ZoomToContainer();
+        if (_textVisibility.IsVisible)
+        {
+            await RefreshText();
+        }
+    }
+
+    private async Task ToggleText()
+    {
+        if (_textVisibility.IsVisible)
+        {
+            _textVisibility.IsVisible = false;
+            SetText(null);
+            return;
+        }
+        var text = await GetTextWithPrompts();
+        if (text != null)
+        {
+            SetText(text);
+            _textVisibility.IsVisible = true;
+        }
+    }
+
+    private void SetText(PageText? text)
+    {
+        _textView.Text = text;
+        CopyTextCommand.Enabled = text is { IsEmpty: false };
+    }
+
+    private void CopyText()
+    {
+        if (_textView.Text is { IsEmpty: false } text)
+        {
+            Clipboard.Instance.Text = text.PlainText;
+        }
+    }
+
+    // Updates the displayed text after the image changes, but only from sources that don't need to ask the user
+    private async Task RefreshText()
+    {
+        var uiImage = CurrentImage;
+        using var image = uiImage.GetClonedImage();
+        var text = await Task.Run(() => _pageTextProvider.GetSource(image) switch
+        {
+            PageTextSource.Ocr => _pageTextProvider.GetCachedOcrText(image),
+            PageTextSource.Pdf => _pageTextProvider.GetPdfText(image),
+            _ => null
+        });
+        if (uiImage == CurrentImage)
+        {
+            SetText(text);
+        }
+    }
+
+    private async Task<PageText?> GetTextWithPrompts()
+    {
+        using var image = CurrentImage.GetClonedImage();
+        var source = await Task.Run(() => _pageTextProvider.GetSource(image));
+        switch (source)
+        {
+            case PageTextSource.Ocr:
+                return _pageTextProvider.GetCachedOcrText(image);
+            case PageTextSource.Pdf:
+                return await Task.Run(() => _pageTextProvider.GetPdfText(image));
+            case PageTextSource.PdfChanged:
+                var prompt = new ChoiceForm(Config)
+                {
+                    Title = UiStrings.ShowText,
+                    Message = UiStrings.PageChangedTextPrompt,
+                    Choices = [UiStrings.Show, UiStrings.RecognizeAgain]
+                };
+                prompt.ShowModal();
+                return prompt.SelectedChoice switch
+                {
+                    0 => await Task.Run(() => _pageTextProvider.GetPdfText(image)),
+                    1 => await RecognizeText(image),
+                    _ => null
+                };
+            case PageTextSource.PdfRedacted:
+                // The original text layer would reveal what was redacted, so recognizing again is the only option
+                return Confirm(UiStrings.PageRedactedTextPrompt) ? await RecognizeText(image) : null;
+            default:
+                return Confirm(UiStrings.PageNotRecognizedPrompt) ? await RecognizeText(image) : null;
+        }
+    }
+
+    private bool Confirm(string message) =>
+        MessageBox.Show(this, message, UiStrings.ShowText, MessageBoxButtons.YesNo, MessageBoxType.Question) ==
+        DialogResult.Yes;
+
+    private async Task<PageText?> RecognizeText(ProcessedImage image)
+    {
+        if (!_pageTextProvider.CanRecognize)
+        {
+            // OCR needs to be set up before we can run it
+            Commands.OcrSettings.Execute();
+        }
+        if (!_pageTextProvider.CanRecognize)
+        {
+            return null;
+        }
+        ShowTextCommand.Enabled = false;
+        try
+        {
+            var text = await _pageTextProvider.Recognize(image);
+            if (text == null || text.IsEmpty)
+            {
+                MessageBox.Show(this, UiStrings.NoTextFound, UiStrings.ShowText, MessageBoxType.Information);
+                return null;
+            }
+            return text;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException("Error recognizing page text", ex);
+            return null;
+        }
+        finally
+        {
+            ShowTextCommand.Enabled = true;
+        }
     }
 
     protected override void OnSizeChanged(EventArgs e)

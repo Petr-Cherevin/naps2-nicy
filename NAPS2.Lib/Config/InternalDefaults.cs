@@ -59,6 +59,7 @@ public static class InternalDefaults
             OcrAutoRecognize = false,
             OcrAutoRecognizeImports = false,
             RedactWithBlack = false,
+            PreviewToolbarLayout = "",
             LastImageExt = "",
             LastPdfOrImageExt = "",
             ThumbnailSize = ThumbnailSizes.DEFAULT_SIZE,

@@ -97,6 +97,12 @@ public class CommonConfig
     public bool HasBeenRun { get; set; }
 
     /// <summary>
+    /// The order and visibility of the preview window toolbar buttons. See PreviewToolbarLayout.
+    /// </summary>
+    [User]
+    public string? PreviewToolbarLayout { get; set; }
+
+    /// <summary>
     /// Whether redaction in the preview window fills with black instead of white.
     /// </summary>
     [User]

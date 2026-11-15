@@ -50,6 +50,22 @@ internal class OcrRequestQueue
     }
 
     /// <summary>
+    /// Gets the result of a previously completed OCR request for the image, or null if there isn't one.
+    /// </summary>
+    public OcrResult? GetCachedResult(IOcrEngine ocrEngine, ProcessedImage image, OcrParams ocrParams)
+    {
+        var reqParams = new OcrRequestParams(image.GetWeakReference(), ocrEngine, ocrParams);
+        lock (this)
+        {
+            if (_requestCache.TryGetValue(reqParams, out var req) && req.State == OcrRequestState.Completed)
+            {
+                return req.CompletedTask.Result;
+            }
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Adds a new OCR request to the queue. Before calling this method, the image should be saved to disk and the file
     /// path specified as "tempImageFilePath". The file will automatically be deleted once it is no longer needed for
     /// the OCR request.

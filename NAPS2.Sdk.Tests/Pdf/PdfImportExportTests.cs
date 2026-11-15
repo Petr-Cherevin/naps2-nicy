@@ -155,6 +155,24 @@ public class PdfImportExportTests : ContextualTests
         PdfAsserts.AssertContainsTextOnce("Page two.", redactedExportPath);
     }
 
+    [Fact]
+    public async Task ReadPageTextWithPositions()
+    {
+        var images = await _importer.Import(_importPath).ToListAsync();
+
+        var text = PdfiumPageTextReader.Read(images[0].Storage);
+
+        Assert.NotNull(text);
+        Assert.Contains("Page one.", text.Text);
+        Assert.Contains(text.Words, word => word.Text == "Page");
+        Assert.All(text.Words, word =>
+        {
+            Assert.InRange(word.Left, 0, text.PageWidth);
+            Assert.InRange(word.Top, 0, text.PageHeight);
+            Assert.True(word.Width > 0 && word.Height > 0);
+        });
+    }
+
     private static ProcessedImage RedactAll(ProcessedImage image)
     {
         using var rendered = image.Render();

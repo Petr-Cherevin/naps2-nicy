@@ -2157,6 +2157,84 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string PreviewToolbar {
+            get {
+                return ResourceManager.GetString("PreviewToolbar", resourceCulture);
+            }
+        }
+        
+        internal static string PageNumber {
+            get {
+                return ResourceManager.GetString("PageNumber", resourceCulture);
+            }
+        }
+        
+        internal static string ZoomPercent {
+            get {
+                return ResourceManager.GetString("ZoomPercent", resourceCulture);
+            }
+        }
+        
+        internal static string SeparatorItem {
+            get {
+                return ResourceManager.GetString("SeparatorItem", resourceCulture);
+            }
+        }
+        
+        internal static string EditWithLastApp {
+            get {
+                return ResourceManager.GetString("EditWithLastApp", resourceCulture);
+            }
+        }
+        
+        internal static string ShowHide {
+            get {
+                return ResourceManager.GetString("ShowHide", resourceCulture);
+            }
+        }
+        
+        internal static string ShowText {
+            get {
+                return ResourceManager.GetString("ShowText", resourceCulture);
+            }
+        }
+        
+        internal static string CopyText {
+            get {
+                return ResourceManager.GetString("CopyText", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeAgain {
+            get {
+                return ResourceManager.GetString("RecognizeAgain", resourceCulture);
+            }
+        }
+        
+        internal static string PageNotRecognizedPrompt {
+            get {
+                return ResourceManager.GetString("PageNotRecognizedPrompt", resourceCulture);
+            }
+        }
+        
+        internal static string PageChangedTextPrompt {
+            get {
+                return ResourceManager.GetString("PageChangedTextPrompt", resourceCulture);
+            }
+        }
+        
+        internal static string PageRedactedTextPrompt {
+            get {
+                return ResourceManager.GetString("PageRedactedTextPrompt", resourceCulture);
+            }
+        }
+        
+        internal static string NoTextFound {
+            get {
+                return ResourceManager.GetString("NoTextFound", resourceCulture);
+            }
+        }
+        
         internal static string RecognizeSelected {
             get {
                 return ResourceManager.GetString("RecognizeSelected", resourceCulture);

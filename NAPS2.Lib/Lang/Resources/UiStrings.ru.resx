@@ -1098,4 +1098,43 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="MoveDownShort" xml:space="preserve">
     <value>Ниже</value>
   </data>
+  <data name="PreviewToolbar" xml:space="preserve">
+    <value>Панель окна просмотра</value>
+  </data>
+  <data name="PageNumber" xml:space="preserve">
+    <value>Номер страницы</value>
+  </data>
+  <data name="ZoomPercent" xml:space="preserve">
+    <value>Масштаб в процентах</value>
+  </data>
+  <data name="SeparatorItem" xml:space="preserve">
+    <value>— Разделитель —</value>
+  </data>
+  <data name="EditWithLastApp" xml:space="preserve">
+    <value>Редактировать в последнем приложении</value>
+  </data>
+  <data name="ShowHide" xml:space="preserve">
+    <value>Показать/скрыть</value>
+  </data>
+  <data name="ShowText" xml:space="preserve">
+    <value>Показать текст</value>
+  </data>
+  <data name="CopyText" xml:space="preserve">
+    <value>Копировать текст</value>
+  </data>
+  <data name="RecognizeAgain" xml:space="preserve">
+    <value>Распознать заново</value>
+  </data>
+  <data name="PageNotRecognizedPrompt" xml:space="preserve">
+    <value>Страница не распознана. Распознать её?</value>
+  </data>
+  <data name="PageChangedTextPrompt" xml:space="preserve">
+    <value>Страница изменена, отображение текста может быть неверным.</value>
+  </data>
+  <data name="PageRedactedTextPrompt" xml:space="preserve">
+    <value>На странице есть цензурирование, исходный текст показать нельзя. Распознать заново?</value>
+  </data>
+  <data name="NoTextFound" xml:space="preserve">
+    <value>На этой странице текст не найден.</value>
+  </data>
 </root>
