@@ -19,16 +19,24 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private readonly Dictionary<PageTextStatus, Bitmap> _badges = new();
     // Status detection may read a PDF text layer. Never do that on the UI/thumbnail rendering thread.
     // A single sequential worker lets thumbnails and import progress stay responsive on slower PCs.
-    private ConditionalWeakTable<UiImage, BadgeCacheState> _statusCache = new();
+    // Weak entries avoid retaining discarded pages. OCR events must not clear this cache:
+    // that makes already recognized green T badges disappear and reappear.
+    private readonly ConditionalWeakTable<UiImage, BadgeCacheState> _statusCache = new();
     private readonly ConcurrentQueue<(UiImage Image, BadgeCacheState Entry, object State, string? Language)> _pending = new();
     private int _workerRunning;
     private int _importActive;
+    private int _resultsGeneration;
+    private int _refreshWorkerRunning;
+    private long _badgeChecks;
+    private long _badgeChanges;
 
     public void SetImportActive(bool active)
     {
         Interlocked.Exchange(ref _importActive, active ? 1 : 0);
         if (!active)
         {
+            // Pages imported during OCR must be checked once, but known badges stay visible.
+            ScheduleStatusRefresh();
             BadgesChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -54,12 +62,7 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
         _thumbnailProvider = thumbnailProvider;
         _config = config;
         _pageTextStatusProvider = pageTextStatusProvider;
-        _pageTextStatusProvider.StatusChanged += (_, _) =>
-        {
-            System.Threading.Interlocked.Exchange(ref _statusCache,
-                new ConditionalWeakTable<UiImage, BadgeCacheState>());
-            BadgesChanged?.Invoke(this, EventArgs.Empty);
-        };
+        _pageTextStatusProvider.StatusChanged += (_, _) => ScheduleStatusRefresh();
         MultiSelect = true;
         ShowLabels = false;
         ScrollOnDrag = true;
@@ -150,6 +153,54 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
         return null;
     }
 
+    private void ScheduleStatusRefresh()
+    {
+        Interlocked.Increment(ref _resultsGeneration);
+        if (Interlocked.CompareExchange(ref _refreshWorkerRunning, 1, 0) != 0) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                int observed;
+                do
+                {
+                    observed = Volatile.Read(ref _resultsGeneration);
+                    await Task.Delay(300);
+                    if (Volatile.Read(ref _importActive) != 0) continue;
+
+                    int audited = 0;
+                    foreach (var pair in _statusCache)
+                    {
+                        var item = pair.Key;
+                        var entry = pair.Value;
+                        if (item.IsDisposed) continue;
+                        lock (entry)
+                        {
+                            // Never blank an existing badge while checking the newer OCR cache.
+                            if (entry.Status == null || entry.Pending) continue;
+                            entry.Pending = true;
+                            _pending.Enqueue((item, entry, entry.State!, entry.Language));
+                            audited++;
+                        }
+                    }
+                    if (audited != 0) StartWorker();
+                    DiagnosticLog.Write("Badge",
+                        $"refresh generation={observed} audited={audited} queue={_pending.Count}");
+                } while (observed != Volatile.Read(ref _resultsGeneration));
+            }
+            catch (Exception ex)
+            {
+                DiagnosticLog.Write("Badge", $"refreshError={ex.GetType().Name}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _refreshWorkerRunning, 0);
+                // Catch a result arriving while this worker was shutting down.
+                // A later event always schedules another refresh.
+            }
+        });
+    }
+
     private void StartWorker()
     {
         if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
@@ -170,27 +221,42 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                     if (item.IsDisposed) continue;
                     // The page might have been modified while waiting; stale results are ignored below.
                     var timer = Stopwatch.StartNew();
-                    var result = _pageTextStatusProvider.GetStatus(item);
+                    PageTextStatus? previous;
+                    lock (entry) previous = entry.Status;
+                    var result = previous is { } old
+                        ? _pageTextStatusProvider.GetStatusAfterOcrChange(item, old)
+                        : _pageTextStatusProvider.GetStatus(item);
                     timer.Stop();
-                    if (timer.ElapsedMilliseconds >= 150)
-                    {
-                        DiagnosticLog.Write("BadgeStatus",
-                            $"slowCheckMs={timer.ElapsedMilliseconds} pending={_pending.Count}");
-                    }
+                    var checkedCount = Interlocked.Increment(ref _badgeChecks);
+                    bool changed = false;
                     lock (entry)
                     {
                         if (Equals(entry.State, state) && entry.Language == language)
                         {
+                            changed = entry.Status != result;
                             entry.Status = result;
                             entry.Pending = false;
                         }
                     }
-                    BadgesChanged?.Invoke(this, EventArgs.Empty);
+                    if (changed)
+                    {
+                        Interlocked.Increment(ref _badgeChanges);
+                        BadgesChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    if (timer.ElapsedMilliseconds >= 150 || checkedCount % 100 == 0)
+                        DiagnosticLog.Write("BadgeStatus",
+                            $"checkMs={timer.ElapsedMilliseconds} changed={changed} " +
+                            $"checks={checkedCount} changes={Volatile.Read(ref _badgeChanges)} pending={_pending.Count}");
                 }
                 catch (Exception ex)
                 {
                     Log.ErrorException("Error checking OCR badge in background", ex);
-                    lock (entry) entry.Pending = false;
+                    lock (entry)
+                    {
+                        if (Equals(entry.State, state) && entry.Language == language)
+                            entry.Pending = false;
+                    }
+                    DiagnosticLog.Write("Badge", $"workerError={ex.GetType().Name}");
                 }
             }
             Interlocked.Exchange(ref _workerRunning, 0);
