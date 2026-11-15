@@ -2145,6 +2145,12 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string SettingsButton {
+            get {
+                return ResourceManager.GetString("SettingsButton", resourceCulture);
+            }
+        }
+        
         internal static string ScanFileName {
             get {
                 return ResourceManager.GetString("ScanFileName", resourceCulture);

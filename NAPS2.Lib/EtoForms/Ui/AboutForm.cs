@@ -1,7 +1,4 @@
-using Eto.Drawing;
-using Eto.Forms;
 using NAPS2.EtoForms.Layout;
-using NAPS2.EtoForms.Widgets;
 using NAPS2.Scan;
 using NAPS2.Update;
 
@@ -9,14 +6,7 @@ namespace NAPS2.EtoForms.Ui;
 
 public class AboutForm : EtoDialogBase
 {
-    private const string NAPS2_HOMEPAGE = "https://www.naps2.com";
-    private const string ICONS_HOMEPAGE = "https://web.archive.org/web/20230301031953/https://www.fatcow.com/free-icons";
-    private const string ICONS_HOMEPAGE_LABEL = "FatCow";
-    private const string DONATE_URL = "https://www.naps2.com/donate?src=about";
-
-    private readonly Button _donateButton;
-    private readonly UpdateChecker _updateChecker;
-    private readonly CheckBox _enableDebugLogging = C.CheckBox(UiStrings.EnableDebugLogging);
+    private readonly AboutContent _content;
 
     public AboutForm(Naps2Config config, UpdateChecker updateChecker, ScanningContext scanningContext)
         : base(config)
@@ -24,22 +14,7 @@ public class AboutForm : EtoDialogBase
         Title = UiStrings.AboutFormTitle;
         IconName = "information";
 
-        _donateButton = C.Button(UiStrings.Donate, () => ProcessHelper.OpenUrl(DONATE_URL));
-        _donateButton.BackgroundColor = Color.FromRgb(0xfeda96);
-        _donateButton.TextColor = Color.FromRgb(0x1b464e);
-        _donateButton.Font = new Font(_donateButton.Font.Family, _donateButton.Font.Size * 11 / 10,
-            FontStyle.Italic | FontStyle.Bold);
-        EtoPlatform.Current.ConfigureDonateButton(_donateButton);
-
-        _enableDebugLogging.Checked = config.Get(c => c.EnableDebugLogging);
-        _enableDebugLogging.CheckedChanged += (_, _) =>
-        {
-            config.User.Set(c => c.EnableDebugLogging, _enableDebugLogging.IsChecked());
-            NLogConfig.EnvDebugLogging = _enableDebugLogging.IsChecked();
-            scanningContext.WorkerFactory?.RecreateSpareWorkers();
-        };
-
-        _updateChecker = updateChecker;
+        _content = new AboutContent(config, updateChecker, scanningContext);
     }
 
     protected override void BuildLayout()
@@ -48,52 +23,6 @@ public class AboutForm : EtoDialogBase
         FormStateController.RestoreFormState = false;
 
         LayoutController.DefaultSpacing = 2;
-        LayoutController.Content = L.Row(
-            L.Column(new ImageView { Image = Icons.scanner_128.ToEtoImage() }).Padding(right: 4),
-            L.Column(
-                C.NoWrap(AssemblyHelper.Product),
-                L.Row(
-                    L.Column(
-                        C.NoWrap(string.Format(MiscResources.Version, AssemblyHelper.Version)),
-                        C.UrlLink(NAPS2_HOMEPAGE)
-                    ),
-                    Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.Donate)
-                        ? C.None()
-                        : L.Column(
-                            C.Filler(),
-                            _donateButton
-                        ).Padding(left: 10)
-                ),
-                GetUpdateWidget(),
-                C.TextSpace(),
-                C.NoWrap(string.Format(UiStrings.CopyrightFormat, AssemblyHelper.COPYRIGHT_YEARS)),
-                Config.AppLocked.Has(c => c.EnableDebugLogging)
-                    ? C.None()
-                    : new[] { C.Spacer(), _enableDebugLogging.Padding(left: 4) }.Expand(),
-                C.TextSpace(),
-                L.Row(
-                    L.Column(
-                        C.NoWrap(UiStrings.IconsFrom),
-                        C.UrlLink(ICONS_HOMEPAGE, ICONS_HOMEPAGE_LABEL)
-                    ).Scale(),
-                    L.Column(
-                        C.Filler(),
-                        C.DialogButton(this, UiStrings.OK, true, true)
-                    ).Padding(left: 20)
-                )
-            )
-        );
-    }
-
-    private LayoutElement GetUpdateWidget()
-    {
-#if MSI
-        return C.None();
-#else
-#if NET6_0_OR_GREATER
-        if (!OperatingSystem.IsWindows()) return C.None();
-#endif
-        return new UpdateCheckWidget(_updateChecker, Config);
-#endif
+        LayoutController.Content = _content.BuildLayout(C.DialogButton(this, UiStrings.OK, true, true));
     }
 }

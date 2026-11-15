@@ -594,6 +594,11 @@ public abstract class DesktopForm : EtoFormBase
             }).ToImmutableList<Command>();
     }
 
+    /// <summary>
+    /// Changes the interface language, which recreates the desktop window.
+    /// </summary>
+    public void ChangeLanguage(string cultureId) => SetCulture(cultureId);
+
     protected virtual void SetCulture(string cultureId)
     {
         _desktopController.Suspend();

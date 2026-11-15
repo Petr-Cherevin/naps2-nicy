@@ -3,6 +3,8 @@ using Eto.Forms;
 using NAPS2.EtoForms.Desktop;
 using NAPS2.EtoForms.Layout;
 using NAPS2.EtoForms.Widgets;
+using NAPS2.Scan;
+using NAPS2.Update;
 
 namespace NAPS2.EtoForms.Ui;
 
@@ -27,7 +29,8 @@ internal class CombinedSettingsForm : EtoDialogBase
     private bool _saved;
 
     public CombinedSettingsForm(Naps2Config config, DialogHelper dialogHelper,
-        DesktopFormProvider desktopFormProvider, KeyboardShortcutManager ksm) : base(config)
+        DesktopFormProvider desktopFormProvider, KeyboardShortcutManager ksm, CultureHelper cultureHelper,
+        UpdateChecker updateChecker, ScanningContext scanningContext) : base(config)
     {
         Title = UiStrings.SettingsFormTitle;
         IconName = "cog";
@@ -46,6 +49,13 @@ internal class CombinedSettingsForm : EtoDialogBase
         if (PlatformCompat.System.SupportsToolbarCustomization)
         {
             _panels.Add(new ToolbarSettingsPanel(this, desktopFormProvider));
+        }
+        if (!EtoPlatform.Current.IsMac)
+        {
+            // These are otherwise only available from toolbar buttons, which can be hidden. On Mac they're in the
+            // application menu instead.
+            _panels.Add(new LanguageSettingsPanel(this, desktopFormProvider, cultureHelper));
+            _panels.Add(new AboutSettingsPanel(this, updateChecker, scanningContext));
         }
         _panelVisibilities = _panels.Select(_ => new LayoutVisibility(false)).ToList();
 

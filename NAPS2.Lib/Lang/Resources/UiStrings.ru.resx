@@ -1140,4 +1140,7 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="ScanFileName" xml:space="preserve">
     <value>Скан</value>
   </data>
+  <data name="SettingsButton" xml:space="preserve">
+    <value>Опции</value>
+  </data>
 </root>

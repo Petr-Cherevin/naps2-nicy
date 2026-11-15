@@ -374,6 +374,7 @@ public class DesktopCommands
         Settings = new ActionCommand(desktopSubFormController.ShowSettingsForm)
         {
             Text = UiStrings.Settings,
+            ToolBarText = UiStrings.SettingsButton,
             IconName = "cog"
         };
         CustomizeToolbar = new ActionCommand(desktopSubFormController.ShowToolbarSettingsForm)

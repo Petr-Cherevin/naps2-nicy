@@ -395,6 +395,12 @@ internal class ToolbarSettingsPanel : SettingsPanel
         }
     }
 
+    public override void OnShown()
+    {
+        // The panel is created hidden, so this is when the grid first becomes visible
+        _previewGridRepaintTimer.Start();
+    }
+
     public override void Save()
     {
         _previewTimer.Stop();
