@@ -63,7 +63,7 @@ internal static class WindowStartupDiagnostics
             }
         }
 
-        DiagnosticLog.Write("Startup", "begin version=0005 activation=one-shot");
+        DiagnosticLog.Write("Startup", "begin version=0006 activation=disabled forensic=enabled");
         Record("attach");
         form.HandleCreated += (_, _) => Record("HandleCreated");
         form.HandleDestroyed += (_, _) => Record("HandleDestroyed");
@@ -75,33 +75,10 @@ internal static class WindowStartupDiagnostics
         form.Resize += (_, _) => Record("Resize");
         form.FormClosed += (_, _) => Record("FormClosed");
 
-        // The requested one-time activation occurs only AFTER initial display.
-        // Unlike TopMost, it will not keep NAPS2 above other applications.
-        var activationTimer = new System.Windows.Forms.Timer { Interval = 850 };
-        activationTimer.Tick += (_, _) =>
-        {
-            activationTimer.Stop();
-            if (!form.IsDisposed && form.IsHandleCreated && form.Visible &&
-                form.WindowState != FormWindowState.Minimized)
-            {
-                var before = GetForegroundWindow();
-                form.BringToFront();
-                bool accepted = SetForegroundWindow(form.Handle);
-                form.Activate();
-                DiagnosticLog.Write("Activation",
-                    $"requested=True accepted={accepted} previousForeground=0x{before.ToInt64():X} " +
-                    $"newForeground=0x{GetForegroundWindow().ToInt64():X} " +
-                    $"target=0x{form.Handle.ToInt64():X}");
-                Record("PostStartupActivation");
-            }
-            activationTimer.Dispose();
-        };
-        form.Shown += (_, _) => activationTimer.Start();
-        form.FormClosed += (_, _) =>
-        {
-            activationTimer.Stop();
-            activationTimer.Dispose();
-        };
+        // Do not steal focus: the 0005 SetForegroundWindow experiment was denied
+        // when another application was foreground. Taskbar visibility is a separate issue.
+        DiagnosticLog.Write("Activation", "oneShot=False reason=focus-experiment-denied-in-0005");
+        TaskbarForensics.Attach(form);
 
         // Short high-resolution sampling of startup state, even if NAPS2 never gets focus.
         int ticks = 0;
