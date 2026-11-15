@@ -10,6 +10,10 @@ class Program
         var portableExeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         if (portableExeDir != null)
         {
+            // This launcher lives next to Data and App in portable ZIPs.
+            // The child inherits the root so its logging does not accidentally use App\\lib.
+            Environment.SetEnvironmentVariable("NAPS2_DIAGNOSTICS_ROOT", portableExeDir);
+            WriteLauncherDiagnostic(portableExeDir, "start argc=" + args.Length);
             bool failedUpdate = false;
             bool isUpdate = args.Length == 3 && args[0] == "/Update";
             try
@@ -17,30 +21,53 @@ class Program
                 if (isUpdate)
                 {
                     failedUpdate = true;
+                    WriteLauncherDiagnostic(portableExeDir, "update-start");
                     UpdatePortableApp(portableExeDir, args[1], args[2]);
+                    WriteLauncherDiagnostic(portableExeDir, "update-finished");
                     failedUpdate = false;
                 }
             }
             finally
             {
                 var portableExePath = Path.Combine(portableExeDir, "App", "NAPS2.exe");
-                if (failedUpdate)
+                try
                 {
-                    Process.Start(portableExePath, "/FailedUpdate");
+                    Process child = failedUpdate
+                        ? Process.Start(portableExePath, "/FailedUpdate")
+                        : isUpdate
+                            ? Process.Start(portableExePath)
+                            : Process.Start(portableExePath, GetRawArgs());
+                    WriteLauncherDiagnostic(portableExeDir, "child-started pid=" +
+                        (child == null ? "none" : child.Id.ToString()));
+                    if (child != null) child.Dispose();
                 }
-                else if (isUpdate)
+                catch (Exception ex)
                 {
-                    Process.Start(portableExePath);
-                }
-                else
-                {
-                    Process.Start(portableExePath, GetRawArgs());
+                    WriteLauncherDiagnostic(portableExeDir, "child-start-failed type=" + ex.GetType().Name);
+                    throw;
                 }
             }
         }
     }
 
     // Gets the original command line without the exe path, so arguments are forwarded exactly as given
+    // net462 and newer: no dependency on the GUI or its logging libraries.
+    private static void WriteLauncherDiagnostic(string root, string message)
+    {
+        try
+        {
+            string folder = Path.Combine(root, "Diagnostics");
+            Directory.CreateDirectory(folder);
+            // Include UTC day to avoid growing a single file indefinitely.
+            string filename = "ChatGPT-0006-launcher-" +
+                DateTime.UtcNow.ToString("yyyyMMdd") + "-" +
+                Process.GetCurrentProcess().Id + ".log";
+            File.AppendAllText(Path.Combine(folder, filename),
+                DateTime.UtcNow.ToString("O") + " [PortableLauncher] " + message + Environment.NewLine);
+        }
+        catch { /* A diagnostics failure must not prevent launching NAPS2. */ }
+    }
+
     private static string GetRawArgs()
     {
         var commandLine = Environment.CommandLine;
