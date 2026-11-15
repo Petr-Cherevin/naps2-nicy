@@ -219,7 +219,9 @@ internal static class TaskbarForensics
             if (name != null)
                 DiagnosticLog.Write("TaskbarMsg",
                     $"event={name} hwnd={Hex(m.HWnd)} wp=0x{m.WParam.ToInt64():X} " +
-                    $"lp=0x{m.LParam.ToInt64():X}");
+                    $"lp=0x{m.LParam.ToInt64():X} " +
+                    $"style=0x{GetWindowLong(m.HWnd, -16):X} exStyle=0x{GetWindowLong(m.HWnd, -20):X} " +
+                    $"owner={Hex(GetWindow(m.HWnd, 4))} visible={IsWindowVisible(m.HWnd)}");
             base.WndProc(ref m);
         }
     }

@@ -142,7 +142,8 @@ internal class SavePdfOperation : OperationBase
                                     DiagnosticLog.Write("PdfPipeline", message);
                                     if (message.StartsWith("stage=finalizePdfSharp") ||
                                         message.StartsWith("stage=passthroughMerge") ||
-                                        message.StartsWith("stage=writeMergedPdf"))
+                                        message.StartsWith("stage=writeMergedPdf") ||
+                                        message.StartsWith("stage=ocrStage"))
                                         DiagnosticLog.SampleProcess();
                                 },
                                 (done, total) =>

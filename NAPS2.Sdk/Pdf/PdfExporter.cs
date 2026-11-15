@@ -191,7 +191,16 @@ public class PdfExporter
                         Interlocked.Increment(ref renderedOcr);
                         return RenderStep(state);
                     })
-                    .Step(InitOcrStep)
+                    .Step(state =>
+                    {
+                        var result = InitOcrStep(state);
+                        // The image is only needed to create the temporary OCR input.
+                        // The original PDF page is merged separately. Release it now
+                        // instead of holding 100+ rendered pages until the final merge.
+                        state.Embedder?.Dispose();
+                        state.Embedder = null;
+                        return result;
+                    })
                     .Step(async state =>
                     {
                         var result = await WaitForOcrStep(state);
