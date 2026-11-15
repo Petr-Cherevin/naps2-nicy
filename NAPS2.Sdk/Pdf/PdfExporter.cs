@@ -37,19 +37,22 @@ public class PdfExporter
 
     public Task<bool> Export(string path, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null,
+        Action<int, int>? recognitionProgress = null)
         => Export(new OutputPathOrStream(path, null), images, exportParams, ocrParams, progress, diagnostics,
-            preparationProgress);
+            preparationProgress, recognitionProgress);
 
     public Task<bool> Export(Stream stream, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null,
+        Action<int, int>? recognitionProgress = null)
         => Export(new OutputPathOrStream(null, stream), images, exportParams, ocrParams, progress, diagnostics,
-            preparationProgress);
+            preparationProgress, recognitionProgress);
 
     private async Task<bool> Export(OutputPathOrStream output, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null,
+        Action<int, int>? recognitionProgress = null)
     {
         return await Task.Run(async () =>
         {
@@ -153,7 +156,10 @@ public class PdfExporter
                 var pdfPagesPrePipeline = ocrEngine != null
                     ? Pipeline.For(pdfPages).Step(state =>
                     {
+                        var checkTimer = Stopwatch.StartNew();
                         var result = CheckIfOcrNeededStep(state);
+                        if (checkTimer.ElapsedMilliseconds > 500)
+                            Trace($"slowPdfCheck page={state.PageIndex + 1} checkMs={checkTimer.ElapsedMilliseconds}");
                         int done = Interlocked.Increment(ref checkedPages);
                         preparationProgress?.Invoke(done, pagesToCheck);
                         if (done == 1 || done == pagesToCheck || done % 16 == 0)
@@ -165,10 +171,37 @@ public class PdfExporter
                 await pdfPagesPrePipeline;
                 Trace("passthroughOcrCheckComplete");
 
-                var pdfPagesOcrPipeline = Pipeline.For(pdfPages.Where(x => x.NeedsOcr))
-                    .Step(RenderStep)
+                // A cached OCR result is enough to embed text into the existing PDF page.
+                // In 0005 we still rasterized all 112 cached pages, taking 47s and
+                // several gigabytes of RAM. Only render when there is no cached result.
+                var pdfPagesNeedingOcr = pdfPages.Where(x => x.NeedsOcr).ToList();
+                int cachedOcr = 0, renderedOcr = 0, recognizedOcr = 0;
+                var pdfPagesOcrPipeline = Pipeline.For(pdfPagesNeedingOcr)
+                    .Step(state =>
+                    {
+                        if (state.CancelToken.IsCancellationRequested) return state;
+                        var cached = _scanningContext.OcrRequestQueue.GetCachedResult(
+                            state.OcrEngine!, state.Image, state.OcrParams!);
+                        if (cached != null)
+                        {
+                            state.OcrTask = Task.FromResult<OcrResult?>(cached);
+                            Interlocked.Increment(ref cachedOcr);
+                            return state;
+                        }
+                        Interlocked.Increment(ref renderedOcr);
+                        return RenderStep(state);
+                    })
                     .Step(InitOcrStep)
-                    .Step(WaitForOcrStep)
+                    .Step(async state =>
+                    {
+                        var result = await WaitForOcrStep(state);
+                        int done = Interlocked.Increment(ref recognizedOcr);
+                        recognitionProgress?.Invoke(done, pdfPagesNeedingOcr.Count);
+                        if (done == 1 || done == pdfPagesNeedingOcr.Count || done % 16 == 0)
+                            Trace($"ocrStage={done}/{pdfPagesNeedingOcr.Count} " +
+                                  $"cacheHits={Volatile.Read(ref cachedOcr)} rendered={Volatile.Read(ref renderedOcr)}");
+                        return result;
+                    })
                     .Run();
 
                 await imagePagesPipeline;
@@ -412,7 +445,14 @@ public class PdfExporter
 
     private PageExportState InitOcrStep(PageExportState state)
     {
-        if (state.CancelToken.IsCancellationRequested || state.SkipOcr) return state;
+        if (state.CancelToken.IsCancellationRequested || state.SkipOcr || state.OcrTask != null) return state;
+        var cached = _scanningContext.OcrRequestQueue.GetCachedResult(
+            state.OcrEngine!, state.Image, state.OcrParams!);
+        if (cached != null)
+        {
+            state.OcrTask = Task.FromResult<OcrResult?>(cached);
+            return state;
+        }
         var ext = state.Embedder!.OriginalFileFormat == ImageFileFormat.Png ? ".png" : ".jpg";
         string ocrTempFilePath = Path.Combine(_scanningContext.TempFolderPath, Path.GetRandomFileName() + ext);
         if (!_scanningContext.OcrRequestQueue.HasCachedResult(state.OcrEngine!, state.Image, state.OcrParams!))

@@ -205,7 +205,10 @@ public class PdfImportExportTests : ContextualTests
         await ScanningContext.OcrRequestQueue.Enqueue(ScanningContext, ScanningContext.OcrEngine!, images[0],
             tempPath, ocrParams, OcrPriority.Foreground, CancellationToken.None);
         var secondExportPath = P("export2.pdf");
-        await _exporter.Export(secondExportPath, images, exportParams, ocrParams);
+        var stages = new List<string>();
+        await _exporter.Export(secondExportPath, images, exportParams, ocrParams,
+            diagnostics: stages.Add);
+        Assert.Contains(stages, stage => stage.Contains("cacheHits=1 rendered=0"));
         PdfAsserts.AssertContainsTextOnce("Sized for printing unscaled", secondExportPath);
     }
 

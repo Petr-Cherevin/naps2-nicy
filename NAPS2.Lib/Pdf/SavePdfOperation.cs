@@ -98,13 +98,15 @@ internal class SavePdfOperation : OperationBase
                     Status.StatusText = string.Format(MiscResources.SavingFormat, Path.GetFileName(currentFileName));
                     InvokeStatusChanged();
 
-                    int prepared = 0, prepareTotal = 0, completed = 0;
+                    int prepared = 0, prepareTotal = 0, completed = 0, recognized = 0, recognizeTotal = 0;
                     bool hadPreparation = false;
                     void ReportPdfProgress()
                     {
                         if (!singleFile) return;
-                        int max = imagesForFile.Length + Volatile.Read(ref prepareTotal);
-                        int current = Volatile.Read(ref prepared) + Volatile.Read(ref completed);
+                        int max = imagesForFile.Length + Volatile.Read(ref prepareTotal) +
+                            Volatile.Read(ref recognizeTotal);
+                        int current = Volatile.Read(ref prepared) + Volatile.Read(ref recognized) +
+                            Volatile.Read(ref completed);
                         OnProgress(Math.Min(current, max), max);
                     }
 
@@ -160,6 +162,23 @@ internal class SavePdfOperation : OperationBase
                                     if (done == 1 || done == total || done % 16 == 0)
                                         DiagnosticLog.Write("PdfPrepare",
                                             $"checked={done}/{total} elapsedMs={saveTimer.ElapsedMilliseconds}");
+                                },
+                                (done, total) =>
+                                {
+                                    Volatile.Write(ref recognizeTotal, total);
+                                    Volatile.Write(ref recognized, done);
+                                    if (singleFile)
+                                    {
+                                        Status.ProgressType = OperationProgressType.BarOnly;
+                                        Status.StatusText =
+                                            CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru"
+                                                ? $"OCR для PDF: {done} из {total}"
+                                                : $"PDF OCR: {done} of {total}";
+                                        ReportPdfProgress();
+                                    }
+                                    if (done == 1 || done == total || done % 16 == 0)
+                                        DiagnosticLog.Write("PdfOcrStage",
+                                            $"done={done}/{total} elapsedMs={saveTimer.ElapsedMilliseconds}");
                                 }),
                         GetSaveErrorMessage);
                     DiagnosticLog.Write("SavePdf",
