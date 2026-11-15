@@ -50,6 +50,12 @@ internal class OcrRequestQueue
     }
 
     /// <summary>
+    /// Occurs when an OCR request has completed, so its result (if any) is available from GetCachedResult. This can
+    /// be raised on any thread.
+    /// </summary>
+    public event EventHandler? ResultAvailable;
+
+    /// <summary>
     /// Gets the result of a previously completed OCR request for the image, or null if there isn't one.
     /// </summary>
     public OcrResult? GetCachedResult(IOcrEngine ocrEngine, ProcessedImage image, OcrParams ocrParams)
@@ -100,6 +106,10 @@ internal class OcrRequestQueue
         await Task.WhenAny(req.CompletedTask, cancelToken.WaitHandle.WaitOneAsync());
         // If no requests are pending, stop the worker threads
         EnsureWorkerThreads(scanningContext);
+        if (req.CompletedTask.IsCompleted)
+        {
+            ResultAvailable?.Invoke(this, EventArgs.Empty);
+        }
         // Return null if canceled
         return req.CompletedTask.IsCompleted ? req.CompletedTask.Result : null;
     }

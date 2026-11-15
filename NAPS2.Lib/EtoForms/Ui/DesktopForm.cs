@@ -38,6 +38,7 @@ public abstract class DesktopForm : EtoFormBase
     protected readonly ListProvider<Command> _manualDuplexPreviewCommands = new();
     protected readonly ListProvider<Command> _autoRecognizeCommands = new();
     private readonly ContextMenu _contextMenu = new();
+    private readonly UITimer _badgeRefreshTimer = new() { Interval = 0.5 };
     private readonly ActionCommand _pasteAfterCommand;
     private readonly ActionCommand _pasteAtEndCommand;
     private UiImage? _contextMenuImage;
@@ -110,6 +111,13 @@ public abstract class DesktopForm : EtoFormBase
         UpdateAutoRecognize();
 
         _listView = EtoPlatform.Current.CreateListView(imageListViewBehavior);
+        // The thumbnails have badges that depend on OCR results, which can complete in bulk, so we batch the updates
+        _badgeRefreshTimer.Elapsed += (_, _) =>
+        {
+            _badgeRefreshTimer.Stop();
+            _listView.RegenerateImages();
+        };
+        imageListViewBehavior.BadgesChanged += (_, _) => Invoker.Current.InvokeDispatch(_badgeRefreshTimer.Start);
         _listView.Selection = ImageList.Selection;
         _listView.ItemClicked += ListViewItemClicked;
         _listView.Drop += ListViewDrop;

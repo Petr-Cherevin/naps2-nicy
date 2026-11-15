@@ -1,3 +1,4 @@
+using Eto.Drawing;
 using Eto.Forms;
 using NAPS2.Config.Model;
 using NAPS2.EtoForms.Desktop;
@@ -19,11 +20,19 @@ internal class ToolbarSettingsPanel : SettingsPanel
     // multiple changes
     private readonly UITimer _previewTimer = new() { Interval = 0.01 };
     // The preview window toolbar is shown as a list in display order, where each item can be moved or hidden
-    private readonly ListBox _previewItemsList = new();
+    private readonly GridView _previewItemsGrid;
     private readonly Button _previewMoveUp;
     private readonly Button _previewMoveDown;
     private readonly Button _previewShowHide;
-    private List<PreviewToolbarLayout.Item> _previewItems = [];
+    private List<PreviewItemRow> _previewItems = [];
+
+    private class PreviewItemRow(string id, bool visible, string label, Image? icon)
+    {
+        public string Id { get; } = id;
+        public bool Visible { get; set; } = visible;
+        public string Label { get; } = label;
+        public Image? Icon { get; } = icon;
+    }
     private bool _updatingValues;
     private bool _previewing;
 
@@ -33,8 +42,33 @@ internal class ToolbarSettingsPanel : SettingsPanel
         _previewMoveUp = C.Button(UiStrings.MoveUpShort, () => MovePreviewItem(-1));
         _previewMoveDown = C.Button(UiStrings.MoveDownShort, () => MovePreviewItem(1));
         _previewShowHide = C.Button(UiStrings.ShowHide, TogglePreviewItem);
-        _previewItemsList.SelectedIndexChanged += (_, _) => UpdatePreviewItemButtons();
-        _previewItemsList.Activated += (_, _) => TogglePreviewItem();
+        _previewItemsGrid = new GridView
+        {
+            ShowHeader = false,
+            Columns =
+            {
+                new GridColumn
+                {
+                    DataCell = new CheckBoxCell
+                    {
+                        Binding = Binding.Delegate<PreviewItemRow, bool?>(
+                            row => row.Visible, (row, value) => row.Visible = value ?? false)
+                    },
+                    Editable = true
+                },
+                new GridColumn
+                {
+                    DataCell = new ImageTextCell
+                    {
+                        ImageBinding = Binding.Delegate<PreviewItemRow, Image>(row => row.Icon!),
+                        TextBinding = Binding.Delegate<PreviewItemRow, string>(row => row.Label)
+                    },
+                    Expand = true
+                }
+            }
+        };
+        _previewItemsGrid.SelectionChanged += (_, _) => UpdatePreviewItemButtons();
+        _previewItemsGrid.CellDoubleClick += (_, _) => TogglePreviewItem();
         var buttons = GetButtons().Select(x => (x.button, checkBox: C.CheckBox(x.label))).ToList();
         _allCheckBoxes = buttons.Select(x => x.checkBox).ToList();
         // Settings can't be removed (except by an admin with HideSettingsButton) so people don't accidentally lock
@@ -115,7 +149,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
                 : L.GroupBox(
                     UiStrings.PreviewToolbar,
                     L.Row(
-                        _previewItemsList.NaturalSize(200, 220).Scale(),
+                        _previewItemsGrid.NaturalSize(240, 220).Scale(),
                         L.Column(
                             _previewMoveUp,
                             _previewMoveDown,
@@ -148,7 +182,10 @@ internal class ToolbarSettingsPanel : SettingsPanel
         {
             checkBox.Checked = config.IsToolbarButtonShown(button);
         }
-        _previewItems = PreviewToolbarLayout.Parse(config.Get(c => c.PreviewToolbarLayout));
+        _previewItems = PreviewToolbarLayout.Parse(config.Get(c => c.PreviewToolbarLayout))
+            .Select(item => new PreviewItemRow(
+                item.Id, item.Visible, GetPreviewItemLabel(item.Id), GetPreviewItemIcon(item.Id, config)))
+            .ToList();
         RefreshPreviewItems(0);
         UpdateEnabled();
         _updatingValues = false;
@@ -188,21 +225,66 @@ internal class ToolbarSettingsPanel : SettingsPanel
         _ => UiStrings.SeparatorItem
     };
 
+    private static string? GetPreviewItemIconName(string id) => id switch
+    {
+        PreviewToolbarLayout.Previous => "arrow_left",
+        PreviewToolbarLayout.Next => "arrow_right",
+        PreviewToolbarLayout.ZoomWindow => "arrow_out",
+        PreviewToolbarLayout.ZoomActual => "zoom_actual",
+        PreviewToolbarLayout.ZoomIn => "zoom_in",
+        PreviewToolbarLayout.ZoomOut => "zoom_out",
+        PreviewToolbarLayout.Rotate => "arrow_rotate_anticlockwise",
+        PreviewToolbarLayout.Crop => "transform_crop",
+        PreviewToolbarLayout.BrightCont => "contrast_with_sun",
+        PreviewToolbarLayout.HueSat => "color_management",
+        PreviewToolbarLayout.BlackWhite => "contrast_high",
+        PreviewToolbarLayout.Sharpen => "sharpen",
+        PreviewToolbarLayout.DocumentCorrection => "document",
+        PreviewToolbarLayout.Compress => "spring",
+        PreviewToolbarLayout.Redact => "redact",
+        PreviewToolbarLayout.RedactUndo => "undo",
+        PreviewToolbarLayout.RedactApply => "accept",
+        PreviewToolbarLayout.ShowText => "text",
+        PreviewToolbarLayout.CopyText => "copy",
+        PreviewToolbarLayout.Split => "split",
+        PreviewToolbarLayout.Combine => "combine",
+        PreviewToolbarLayout.EditWithApp => "pencil",
+        PreviewToolbarLayout.EditWithPick => "pencil",
+        PreviewToolbarLayout.SavePdf => "file_extension_pdf",
+        PreviewToolbarLayout.SaveImages => "picture",
+        PreviewToolbarLayout.Delete => "cross",
+        _ => null
+    };
+
+    // Gets the same icon the item has on the preview toolbar, or a blank image for items that don't have one (so that
+    // the labels all line up)
+    private static Image GetPreviewItemIcon(string id, Naps2Config config)
+    {
+        var iconName = GetPreviewItemIconName(id);
+        var icon = iconName == null
+            ? null
+            : EtoPlatform.Current.IconProvider.GetIcon(iconName, IconScenario.SmallToolbar);
+        if (icon != null)
+        {
+            return icon;
+        }
+        var blank = new Bitmap(16, 16, PixelFormat.Format32bppRgba);
+        if (id == PreviewToolbarLayout.RedactColor)
+        {
+            using var graphics = new Graphics(blank);
+            graphics.FillRectangle(config.Get(c => c.RedactWithBlack) ? Colors.Black : Colors.White, 2, 2, 12, 12);
+            graphics.DrawRectangle(Colors.Gray, 2, 2, 11, 11);
+        }
+        return blank;
+    }
+
     private void RefreshPreviewItems(int selectedIndex)
     {
-        _previewItemsList.Items.Clear();
-        foreach (var item in _previewItems)
-        {
-            // The list box doesn't have real checkboxes, so a check mark shows which items are visible
-            _previewItemsList.Items.Add(new ListItem
-            {
-                Key = item.Id,
-                Text = (item.Visible ? "\u2713  " : "      ") + GetPreviewItemLabel(item.Id)
-            });
-        }
+        // Assigning a new list makes the grid pick up the new order
+        _previewItemsGrid.DataStore = _previewItems.ToList();
         if (_previewItems.Count > 0)
         {
-            _previewItemsList.SelectedIndex = Math.Max(0, Math.Min(selectedIndex, _previewItems.Count - 1));
+            _previewItemsGrid.SelectedRow = Math.Max(0, Math.Min(selectedIndex, _previewItems.Count - 1));
         }
         UpdatePreviewItemButtons();
     }
@@ -210,8 +292,8 @@ internal class ToolbarSettingsPanel : SettingsPanel
     private void UpdatePreviewItemButtons()
     {
         bool enabled = !Config.AppLocked.Has(c => c.PreviewToolbarLayout);
-        int index = _previewItemsList.SelectedIndex;
-        _previewItemsList.Enabled = enabled;
+        int index = _previewItemsGrid.SelectedRow;
+        _previewItemsGrid.Enabled = enabled;
         _previewMoveUp.Enabled = enabled && index > 0;
         _previewMoveDown.Enabled = enabled && index >= 0 && index < _previewItems.Count - 1;
         _previewShowHide.Enabled = enabled && index >= 0;
@@ -219,7 +301,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
 
     private void MovePreviewItem(int offset)
     {
-        int index = _previewItemsList.SelectedIndex;
+        int index = _previewItemsGrid.SelectedRow;
         int newIndex = index + offset;
         if (index < 0 || newIndex < 0 || newIndex >= _previewItems.Count) return;
         (_previewItems[index], _previewItems[newIndex]) = (_previewItems[newIndex], _previewItems[index]);
@@ -228,24 +310,10 @@ internal class ToolbarSettingsPanel : SettingsPanel
 
     private void TogglePreviewItem()
     {
-        int index = _previewItemsList.SelectedIndex;
+        int index = _previewItemsGrid.SelectedRow;
         if (index < 0 || index >= _previewItems.Count || Config.AppLocked.Has(c => c.PreviewToolbarLayout)) return;
-        _previewItems[index] = _previewItems[index] with { Visible = !_previewItems[index].Visible };
+        _previewItems[index].Visible = !_previewItems[index].Visible;
         RefreshPreviewItems(index);
-    }
-
-    private void UpdateEnabled()
-    {
-        _mainPosition.Enabled = !Config.AppLocked.Has(c => c.DesktopToolStripDock);
-        _profilesPosition.Enabled = !Config.AppLocked.Has(c => c.ProfilesToolStripDock) &&
-                                    _showProfilesToolbar.IsChecked();
-        _showProfilesToolbar.Enabled = !Config.AppLocked.Has(c => c.ShowProfilesToolbar);
-        foreach (var (button, checkBox) in _buttonCheckBoxes)
-        {
-            checkBox.Enabled = button.IsOptional()
-                ? !Config.AppLocked.Has(c => c.ExtraButtons)
-                : !Config.AppLocked.Has(c => c.HiddenButtons);
-        }
     }
 
     private TransactionConfigScope<CommonConfig> BeginTransaction(out bool changed)
@@ -273,7 +341,8 @@ internal class ToolbarSettingsPanel : SettingsPanel
         changed |= transact.SetIfChanged(Config, c => c.HiddenButtons, hiddenButtons);
         changed |= transact.SetIfChanged(Config, c => c.ExtraButtons, extraButtons);
         // This only affects preview windows opened later, so it doesn't count as a change for the desktop form
-        transact.Set(c => c.PreviewToolbarLayout, PreviewToolbarLayout.Serialize(_previewItems));
+        transact.Set(c => c.PreviewToolbarLayout, PreviewToolbarLayout.Serialize(
+            _previewItems.Select(row => new PreviewToolbarLayout.Item(row.Id, row.Visible))));
         return transact;
     }
 
