@@ -40,6 +40,7 @@ public class OcrSetupForm : EtoDialogBase
     private string _favoriteCode;
     private string _customCode;
     private readonly string _originalCode;
+    private bool _reloadingLanguages;
 
     public OcrSetupForm(Naps2Config config, TesseractLanguageManager tesseractLanguageManager,
         IIconProvider iconProvider, OcrLanguagesListViewBehavior ocrLanguagesListViewBehavior) : base(config)
@@ -78,6 +79,12 @@ public class OcrSetupForm : EtoDialogBase
         };
 
         LoadLanguages(_customCode);
+        _favoriteLanguages.SelectionChanged += (_, _) =>
+        {
+            if (_reloadingLanguages) return;
+            _favoriteCode = SelectedFavoriteCode();
+            UpdateFavoriteSummary();
+        };
         var storedSingleCode = Config.Get(c => c.OcrSingleLanguageCode);
         var singleCode = storedSingleCode ?? (_originalCode.Contains('+') ? "" : _originalCode);
         if (_singleLanguage.Items.Any(x => x.Key == singleCode))
@@ -169,6 +176,9 @@ public class OcrSetupForm : EtoDialogBase
 
     private void LoadLanguages(string? customCode)
     {
+        _reloadingLanguages = true;
+        try
+        {
         var priorSingle = _singleLanguage.SelectedKey;
         _installed = _tesseractLanguageManager.InstalledLanguages.OrderBy(x => x.Name).ToList();
         _singleLanguage.Items.Clear();
@@ -186,6 +196,11 @@ public class OcrSetupForm : EtoDialogBase
         SetCustomSelection(customCode);
         SetFavoriteSelection(_favoriteCode);
         UpdateFavoriteSummary();
+        }
+        finally
+        {
+            _reloadingLanguages = false;
+        }
     }
 
     private void SetCustomSelection(string? code)

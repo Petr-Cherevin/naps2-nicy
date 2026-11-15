@@ -115,7 +115,7 @@ internal class SavePdfOperation : OperationBase
                                 {
                                     OcrScope = ocrScope
                                 },
-                                ocrParams, progress),
+                                ocrParams, progress, message => DiagnosticLog.Write("PdfPipeline", message)),
                         GetSaveErrorMessage);
                     DiagnosticLog.Write("SavePdf",
                         $"fileDone index={i + 1}/{imagesByFile.Length} pages={imagesForFile.Length} " +

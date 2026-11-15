@@ -19,6 +19,10 @@ public class PreviewForm : EtoDialogBase
     private readonly ButtonToolItem _showTextToolItem = new();
     protected ButtonToolItem ShowTextToolItem => _showTextToolItem;
     private readonly PageTextStatusProvider _pageTextStatusProvider;
+    private int _previewStatusRefreshQueued;
+    private bool _previewClosed;
+    private UiImage? _lastStatusImage;
+    private PageTextStatus? _lastStatus;
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
     protected ButtonToolItem EditWithAppToolItem => _editWithAppButton;
@@ -463,8 +467,15 @@ public class PreviewForm : EtoDialogBase
         RefreshPreviewTextStatus();
     }
 
-    private void PageTextStatusChanged(object? sender, EventArgs e) =>
-        Invoker.Current.InvokeDispatch(RefreshPreviewTextStatus);
+    private void PageTextStatusChanged(object? sender, EventArgs e)
+    {
+        if (System.Threading.Interlocked.Exchange(ref _previewStatusRefreshQueued, 1) != 0) return;
+        _ = Task.Delay(220).ContinueWith(_ => Invoker.Current.InvokeDispatch(() =>
+        {
+            System.Threading.Interlocked.Exchange(ref _previewStatusRefreshQueued, 0);
+            if (!_previewClosed) RefreshPreviewTextStatus();
+        }));
+    }
 
     private async void RefreshPreviewTextStatus()
     {
@@ -481,7 +492,10 @@ public class PreviewForm : EtoDialogBase
             Log.ErrorException("Error updating preview OCR badge", ex);
             return;
         }
-        if (page != _currentImage) return;
+        if (page != _currentImage || _previewClosed) return;
+        if (page == _lastStatusImage && status == _lastStatus) return;
+        _lastStatusImage = page;
+        _lastStatus = status;
         DiagnosticLog.Write("PreviewStatus",
             $"page={ImageIndex + 1} status={status} elapsedMs={System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0}");
         _ocrStatusButton.Visible = status != PageTextStatus.None;
@@ -551,6 +565,7 @@ public class PreviewForm : EtoDialogBase
 
     protected override void OnClosed(EventArgs e)
     {
+        _previewClosed = true;
         base.OnClosed(e);
         // Make sure the desktop reflects any changes to the text of pages made from this window
         _pageTextProvider.NotifyStatusChanged();
