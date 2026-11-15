@@ -1,4 +1,5 @@
 using Eto.Drawing;
+using System.Runtime.CompilerServices;
 using Eto.Forms;
 using Google.Protobuf;
 using NAPS2.ImportExport.Images;
@@ -13,6 +14,10 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private readonly PageTextStatusProvider _pageTextStatusProvider;
     private readonly ImageTransfer _imageTransfer = new();
     private readonly Dictionary<PageTextStatus, Bitmap> _badges = new();
+    // Page-number rendering draws the badge on every paint. Cache source detection per page and
+    // transform state so a slow computer doesn't parse the original PDF on each repaint.
+    private ConditionalWeakTable<UiImage, BadgeCacheState> _statusCache = new();
+    private sealed record BadgeCacheState(object TransformState, string? LanguageCode, PageTextStatus Status);
 
     // Badge size and distance from the top-left corner, as fractions of the thumbnail size
     private const float BadgeSizeFraction = 0.13f;
@@ -27,7 +32,12 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
         _thumbnailProvider = thumbnailProvider;
         _config = config;
         _pageTextStatusProvider = pageTextStatusProvider;
-        _pageTextStatusProvider.StatusChanged += (_, _) => BadgesChanged?.Invoke(this, EventArgs.Empty);
+        _pageTextStatusProvider.StatusChanged += (_, _) =>
+        {
+            System.Threading.Interlocked.Exchange(ref _statusCache,
+                new ConditionalWeakTable<UiImage, BadgeCacheState>());
+            BadgesChanged?.Invoke(this, EventArgs.Empty);
+        };
         MultiSelect = true;
         ShowLabels = false;
         ScrollOnDrag = true;
@@ -83,7 +93,24 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
         }
     }
 
-    public Bitmap? GetBadgeFor(UiImage item) => GetBadge(_pageTextStatusProvider.GetStatus(item));
+    public Bitmap? GetBadgeFor(UiImage item)
+    {
+        var state = item.TransformState;
+        var languageCode = _config.Get(c => c.OcrLanguageCode);
+        var cache = _statusCache;
+        if (cache.TryGetValue(item, out var cached) && Equals(cached.TransformState, state) &&
+            cached.LanguageCode == languageCode)
+        {
+            return GetBadge(cached.Status);
+        }
+        var status = _pageTextStatusProvider.GetStatus(item);
+        lock (cache)
+        {
+            cache.Remove(item);
+            cache.Add(item, new BadgeCacheState(state, languageCode, status));
+        }
+        return GetBadge(status);
+    }
 
     private Bitmap? GetBadge(PageTextStatus status)
     {
