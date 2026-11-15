@@ -1143,4 +1143,7 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="SettingsButton" xml:space="preserve">
     <value>Опции</value>
   </data>
+  <data name="UnofficialBuild" xml:space="preserve">
+    <value>Неофициальная сборка на основе NAPS2</value>
+  </data>
 </root>

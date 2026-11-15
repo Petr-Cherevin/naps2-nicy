@@ -2145,6 +2145,12 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string UnofficialBuild {
+            get {
+                return ResourceManager.GetString("UnofficialBuild", resourceCulture);
+            }
+        }
+        
         internal static string SettingsButton {
             get {
                 return ResourceManager.GetString("SettingsButton", resourceCulture);

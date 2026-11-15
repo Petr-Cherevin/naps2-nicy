@@ -741,7 +741,8 @@ public abstract class DesktopForm : EtoFormBase
 
     protected virtual void UpdateTitle(ScanProfile? defaultProfile)
     {
-        Title = string.Format(UiStrings.Naps2TitleFormat, defaultProfile?.DisplayName ?? UiStrings.Naps2FullName);
+        Title = BuildVariant.ApplyToTitle(
+            string.Format(UiStrings.Naps2TitleFormat, defaultProfile?.DisplayName ?? UiStrings.Naps2FullName));
     }
 
     private void ListViewMouseWheel(object? sender, MouseEventArgs e)

@@ -17,7 +17,7 @@ public class GuiAppTests : ContextualTests
             if (target.IsWindows)
             {
                 AppTestHelper.WaitForVisibleWindow(process);
-                Assert.Equal("NAPS2 - Not Another PDF Scanner", process.MainWindowTitle);
+                Assert.Equal("NAPS2 Nicy - Not Another PDF Scanner", process.MainWindowTitle);
                 Assert.True(process.CloseMainWindow());
             }
             else

@@ -53,10 +53,11 @@ internal class AboutContent
         return L.Row(
             L.Column(new ImageView { Image = Icons.scanner_128.ToEtoImage() }).Padding(right: 4),
             L.Column(
-                C.NoWrap(AssemblyHelper.Product),
+                C.NoWrap(BuildVariant.ProductName),
                 L.Row(
                     L.Column(
                         C.NoWrap(string.Format(MiscResources.Version, AssemblyHelper.Version)),
+                        C.NoWrap(UiStrings.UnofficialBuild),
                         C.UrlLink(NAPS2_HOMEPAGE)
                     ),
                     _config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.Donate)
