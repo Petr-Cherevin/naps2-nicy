@@ -229,17 +229,17 @@ public class PdfImportExportTests : ContextualTests
 
     [Theory]
     // Exactly the page size
-    [InlineData(595.276f, 0, 0, 841.89f, 0, 0, true)]
+    [InlineData(595.276f, 0f, 0f, 841.89f, 0f, 0f, true)]
     // Slightly smaller than the page with a small offset, as produced by some other applications
-    [InlineData(595.2f, 0, 0, 841.68f, 0, 0.20977f, true)]
+    [InlineData(595.2f, 0f, 0f, 841.68f, 0f, 0.20977f, true)]
     // Within 10% of the page size
-    [InlineData(550f, 0, 0, 780f, 20f, 30f, true)]
+    [InlineData(550f, 0f, 0f, 780f, 20f, 30f, true)]
     // Only covers half the page
-    [InlineData(595.276f, 0, 0, 420f, 0, 0, false)]
+    [InlineData(595.276f, 0f, 0f, 420f, 0f, 0f, false)]
     // Offset too far
-    [InlineData(595.276f, 0, 0, 841.89f, 100f, 0, false)]
+    [InlineData(595.276f, 0f, 0f, 841.89f, 100f, 0f, false)]
     // Rotated
-    [InlineData(0, 841.89f, -595.276f, 0, 595.276f, 0, false)]
+    [InlineData(0f, 841.89f, -595.276f, 0f, 595.276f, 0f, false)]
     public void ScanImageCoversPage(float a, float b, float c, float d, float e, float f, bool expected)
     {
         var matrix = new NAPS2.Pdf.Pdfium.PdfMatrix(a, b, c, d, e, f);

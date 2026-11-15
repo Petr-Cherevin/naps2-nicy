@@ -21,6 +21,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
     private readonly UITimer _previewTimer = new() { Interval = 0.01 };
     // The preview window toolbar is shown as a list in display order, where each item can be moved or hidden
     private readonly GridView _previewItemsGrid;
+    private readonly UITimer _previewGridRepaintTimer = new() { Interval = 0.1 };
     private readonly Button _previewMoveUp;
     private readonly Button _previewMoveDown;
     private readonly Button _previewShowHide;
@@ -67,6 +68,15 @@ internal class ToolbarSettingsPanel : SettingsPanel
                 }
             }
         };
+        // The grid can initially show up unpainted (black) until something else triggers a repaint, so we force one
+        // once it has been shown and laid out
+        _previewGridRepaintTimer.Elapsed += (_, _) =>
+        {
+            _previewGridRepaintTimer.Stop();
+            _previewItemsGrid.Invalidate(true);
+        };
+        _previewItemsGrid.Shown += (_, _) => _previewGridRepaintTimer.Start();
+        _previewItemsGrid.SizeChanged += (_, _) => _previewGridRepaintTimer.Start();
         _previewItemsGrid.SelectionChanged += (_, _) => UpdatePreviewItemButtons();
         _previewItemsGrid.CellDoubleClick += (_, _) => TogglePreviewItem();
         var buttons = GetButtons().Select(x => (x.button, checkBox: C.CheckBox(x.label))).ToList();

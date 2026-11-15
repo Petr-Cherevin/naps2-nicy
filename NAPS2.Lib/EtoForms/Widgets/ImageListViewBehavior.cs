@@ -14,6 +14,13 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private readonly ImageTransfer _imageTransfer = new();
     private readonly Dictionary<PageTextStatus, Bitmap> _badges = new();
 
+    // Badge size and distance from the top-left corner, as fractions of the thumbnail size
+    private const float BadgeSizeFraction = 0.16f;
+    private const float BadgeOffsetFraction = 0.015f;
+    // Limits on the badge size, in pixels at 100% display scaling
+    private const float BadgeMinSize = 14;
+    private const float BadgeMaxSize = 32;
+
     public ImageListViewBehavior(UiThumbnailProvider thumbnailProvider,
         ColorScheme colorScheme, Naps2Config config, PageTextStatusProvider pageTextStatusProvider) : base(colorScheme)
     {
@@ -38,12 +45,12 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     {
         using var thumbnail = _thumbnailProvider.GetThumbnail(item, listView.ImageSize.Width);
         var image = thumbnail.ToEtoImage();
-        DrawTextBadge(image, item, listView.ImageSize.Width);
+        DrawTextBadge(image, item, listView.ImageSize.Width, listView.Control);
         return image;
     }
 
     // Draws a small badge in the top-left of the thumbnail to show if the page has text and where it's from
-    private void DrawTextBadge(Bitmap image, UiImage item, int thumbnailSize)
+    private void DrawTextBadge(Bitmap image, UiImage item, int thumbnailSize, Control listViewControl)
     {
         try
         {
@@ -52,10 +59,15 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
             {
                 return;
             }
-            // 18px at the default thumbnail size, scaling up (but not down too far) with the thumbnails
-            int size = Math.Max(14, (int) Math.Round(thumbnailSize * 18 / 128.0));
+            // The badge is sized relative to the thumbnail so that it's noticeable without covering much of the page,
+            // whatever the thumbnail size and display scaling. The limits keep it legible on the smallest thumbnails
+            // and unobtrusive on the largest.
+            float scale = listViewControl.ParentWindow is { } window ? EtoPlatform.Current.GetScaleFactor(window) : 1f;
+            float minSize = BadgeMinSize * scale;
+            float maxSize = Math.Max(BadgeMaxSize * scale, minSize);
+            int size = (int) Math.Round(Math.Max(minSize, Math.Min(thumbnailSize * BadgeSizeFraction, maxSize)));
             size = Math.Min(size, Math.Min(image.Width, image.Height));
-            int offset = Math.Max(2, size / 6);
+            int offset = (int) Math.Round(Math.Max(scale, thumbnailSize * BadgeOffsetFraction));
             using var graphics = new Graphics(image);
             graphics.ImageInterpolation = ImageInterpolation.High;
             graphics.DrawImage(badge, offset, offset, size, size);
