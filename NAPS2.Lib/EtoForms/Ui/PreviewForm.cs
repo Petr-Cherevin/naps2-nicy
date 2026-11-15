@@ -17,6 +17,8 @@ public class PreviewForm : EtoDialogBase
     private readonly ButtonToolItem _pageNumberButton = new();
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
+    protected ButtonToolItem EditWithAppToolItem => _editWithAppButton;
+    protected EditWithController EditWithController => _editWithController;
     private readonly PageTextProvider _pageTextProvider;
     private readonly PageTextView _textView = new();
     private readonly LayoutVisibility _textVisibility = new(false);
@@ -324,7 +326,9 @@ public class PreviewForm : EtoDialogBase
         var command = Commands.CreateEditWithApp();
         _editWithAppButton.Command = command;
         _editWithAppButton.ToolTip = command.Text;
-        _editWithAppButton.Visible = _editWithController.HasApp;
+        // Always show the button. On first use it will prompt for an editor; the portable edition
+        // must not hide the only way to configure its external editor.
+        _editWithAppButton.Visible = true;
         EtoPlatform.Current.SetImageSize(_editWithAppButton, (int) (16 * scale));
         _editWithAppButton.Image = command.GetIconImage(IconScenario.SmallToolbar, scale);
     }

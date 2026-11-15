@@ -108,6 +108,13 @@ public class CommonConfig
     [User]
     public bool RedactWithBlack { get; set; }
 
+    /// <summary>
+    /// Controls whether an outline is shown around redaction selections while dragging or before applying.
+    /// The default is a temporary outline that disappears on mouse release.
+    /// </summary>
+    [User]
+    public RedactionOutlineMode RedactionOutlineMode { get; set; } = RedactionOutlineMode.DuringDrag;
+
     [User]
     public DateTime? FirstRunDate { get; set; }
 

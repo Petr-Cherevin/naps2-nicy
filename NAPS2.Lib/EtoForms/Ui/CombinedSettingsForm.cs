@@ -30,7 +30,7 @@ internal class CombinedSettingsForm : EtoDialogBase
 
     public CombinedSettingsForm(Naps2Config config, DialogHelper dialogHelper,
         DesktopFormProvider desktopFormProvider, KeyboardShortcutManager ksm, CultureHelper cultureHelper,
-        UpdateChecker updateChecker, ScanningContext scanningContext) : base(config)
+        UpdateChecker updateChecker, ScanningContext scanningContext, EditWithController editWithController) : base(config)
     {
         Title = UiStrings.SettingsFormTitle;
         IconName = "cog";
@@ -38,6 +38,7 @@ internal class CombinedSettingsForm : EtoDialogBase
         _panels =
         [
             new GeneralSettingsPanel(this, desktopFormProvider),
+            new EditingSettingsPanel(this, editWithController),
             new PdfSettingsPanel(this, dialogHelper),
             new ImageSettingsPanel(this, dialogHelper),
             new EmailSettingsPanel(this)

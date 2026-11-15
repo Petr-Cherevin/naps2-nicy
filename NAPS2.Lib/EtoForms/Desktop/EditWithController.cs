@@ -14,14 +14,36 @@ public class EditWithController(
 {
     public event EventHandler? AppChanged;
 
-    public bool HasApp => !string.IsNullOrEmpty(config.Get(c => c.EditWithAppName));
+    public bool HasApp => !string.IsNullOrEmpty(config.Get(c => c.EditWithAppPath));
+
+    public string? AppName => config.Get(c => c.EditWithAppName);
+
+    public string? AppId => config.Get(c => c.EditWithAppPath);
 
     public Image? AppIcon { get; private set; }
 
+    public IReadOnlyList<OpenWithEntry> GetAvailableEditors()
+    {
+        try
+        {
+            return openWith.GetEntries(".jpg")
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.Name) &&
+                                !entry.Name.StartsWith("NAPS2", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(entry => entry.Id)
+                .Select(group => group.First())
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // Missing or damaged file associations must not prevent choosing an editor by .exe.
+            Log.ErrorException("Error enumerating image editors", ex);
+            return [];
+        }
+    }
+
     public async Task LoadAppIcon()
     {
-        // Load the icon of the configured app in the background
-        string? appId = config.Get(c => c.EditWithAppPath);
+        string? appId = AppId;
         if (string.IsNullOrEmpty(appId))
         {
             return;
@@ -30,7 +52,11 @@ public class EditWithController(
         {
             try
             {
-                var entry = openWith.GetEntries(".jpg").FirstOrDefault(entry => entry.Id == appId);
+                var entry = GetAvailableEditors().FirstOrDefault(entry => entry.Id == appId);
+                if (entry == null && appId.StartsWith("exe:", StringComparison.OrdinalIgnoreCase))
+                {
+                    entry = new OpenWithEntry(appId, AppName ?? "Editor", appId.Substring(4), 0);
+                }
                 return entry != null ? openWith.LoadIcon(entry) : null;
             }
             catch (Exception ex)
@@ -48,9 +74,26 @@ public class EditWithController(
         AppChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public OpenWithEntry? PickApp()
+    {
+        var pickForm = formFactory.Create<EditWithForm>();
+        pickForm.ShowModal();
+        return pickForm.Result;
+    }
+
+    public void SelectApp(OpenWithEntry entry)
+    {
+        var transact = config.User.BeginTransaction();
+        transact.Set(c => c.EditWithAppPath, entry.Id);
+        transact.Set(c => c.EditWithAppName, entry.Name);
+        transact.Commit();
+        using var icon = openWith.LoadIcon(entry);
+        SetAppIcon(icon);
+    }
+
     public void EditWithApp(IEnumerable<UiImage> selection)
     {
-        string? appId = config.Get(c => c.EditWithAppPath);
+        string? appId = AppId;
         if (string.IsNullOrEmpty(appId))
         {
             EditWithPick(selection);
@@ -61,19 +104,17 @@ public class EditWithController(
 
     public void EditWithPick(IEnumerable<UiImage> selection)
     {
-        var pickForm = formFactory.Create<EditWithForm>();
-        pickForm.ShowModal();
-        var entry = pickForm.Result;
+        var entry = PickApp();
         if (entry != null)
         {
-            var transact = config.User.BeginTransaction();
-            transact.Set(c => c.EditWithAppPath, entry.Id);
-            transact.Set(c => c.EditWithAppName, entry.Name);
-            transact.Commit();
-            using var icon = openWith.LoadIcon(entry);
-            SetAppIcon(icon);
-            EditWithPath(entry.Id, selection);
+            EditWithEntry(entry, selection);
         }
+    }
+
+    public void EditWithEntry(OpenWithEntry entry, IEnumerable<UiImage> selection)
+    {
+        SelectApp(entry);
+        EditWithPath(entry.Id, selection);
     }
 
     private void EditWithPath(string appPath, IEnumerable<UiImage> selection)
@@ -87,6 +128,10 @@ public class EditWithController(
                 uiImage.EditorSessions.Add(editorSession);
                 tempFilePaths.Add(editorSession.TempFilePath);
             }
+        }
+        if (tempFilePaths.Count == 0)
+        {
+            return;
         }
         try
         {

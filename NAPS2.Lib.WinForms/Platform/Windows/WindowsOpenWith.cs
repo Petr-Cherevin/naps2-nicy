@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -29,6 +30,28 @@ public class WindowsOpenWith : IOpenWith
 
     public void OpenWith(string entryId, IEnumerable<string> filePaths)
     {
+        // An explicit executable is independent of Windows' file associations. This also works for
+        // the portable NAPS2 package and for editors that aren't listed as recommended JPG handlers.
+        if (entryId.StartsWith("exe:", StringComparison.OrdinalIgnoreCase))
+        {
+            string executable = ResolveExecutablePath(entryId.Substring(4));
+            if (!File.Exists(executable))
+            {
+                throw new FileNotFoundException("Selected image editor was not found", executable);
+            }
+            foreach (var path in filePaths)
+            {
+                var startInfo = new ProcessStartInfo(executable)
+                {
+                    UseShellExecute = false,
+                    WorkingDirectory = Path.GetDirectoryName(executable)!
+                };
+                startInfo.ArgumentList.Add(path);
+                Process.Start(startInfo);
+            }
+            return;
+        }
+
         var pidls = new List<IntPtr>();
         foreach (var path in filePaths)
         {
@@ -48,8 +71,10 @@ public class WindowsOpenWith : IOpenWith
                 {
                     var dao = shellItemArray.BindToHandler(null, BHID_DataObject, typeof(IDataObject).GUID);
                     handler.Invoke(dao);
+                    return;
                 }
             }
+            throw new InvalidOperationException($"The chosen image editor is no longer registered: {entryId}");
         }
         finally
         {
@@ -64,6 +89,10 @@ public class WindowsOpenWith : IOpenWith
     {
         try
         {
+            if (entry.Id.StartsWith("exe:", StringComparison.OrdinalIgnoreCase))
+            {
+                return WindowsIcons.ExtractIcon(_imageContext, ResolveExecutablePath(entry.Id.Substring(4)), 0);
+            }
             if (entry.IconPath.StartsWith("@"))
             {
                 if (GetUnplatedIconPath(entry.IconPath) is { } unplatedPath)
@@ -83,6 +112,9 @@ public class WindowsOpenWith : IOpenWith
             return null;
         }
     }
+
+    private static string ResolveExecutablePath(string path) =>
+        Path.IsPathFullyQualified(path) ? path : Path.GetFullPath(path, Paths.Executable);
 
     private static string? GetUnplatedIconPath(string indirectIconPath)
     {
