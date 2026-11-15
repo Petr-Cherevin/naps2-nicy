@@ -347,4 +347,9 @@ public class ScrollZoomImageViewer
     {
         return control._scrollable;
     }
+
+    /// <summary>
+    /// Gets a layout element for the viewer that expands to fill the available space alongside other elements.
+    /// </summary>
+    public LayoutControl Scale() => _scrollable.Scale();
 }
