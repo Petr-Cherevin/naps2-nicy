@@ -316,6 +316,20 @@ internal class ToolbarSettingsPanel : SettingsPanel
         RefreshPreviewItems(index);
     }
 
+    private void UpdateEnabled()
+    {
+        _mainPosition.Enabled = !Config.AppLocked.Has(c => c.DesktopToolStripDock);
+        _profilesPosition.Enabled = !Config.AppLocked.Has(c => c.ProfilesToolStripDock) &&
+                                    _showProfilesToolbar.IsChecked();
+        _showProfilesToolbar.Enabled = !Config.AppLocked.Has(c => c.ShowProfilesToolbar);
+        foreach (var (button, checkBox) in _buttonCheckBoxes)
+        {
+            checkBox.Enabled = button.IsOptional()
+                ? !Config.AppLocked.Has(c => c.ExtraButtons)
+                : !Config.AppLocked.Has(c => c.HiddenButtons);
+        }
+    }
+
     private TransactionConfigScope<CommonConfig> BeginTransaction(out bool changed)
     {
         // Only update the flags for buttons listed here, so other flags (e.g. Sidebar) are preserved
