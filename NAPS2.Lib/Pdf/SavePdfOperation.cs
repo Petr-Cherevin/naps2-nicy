@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 using NAPS2.EtoForms;
 using NAPS2.ImportExport;
 using NAPS2.ImportExport.Email;
@@ -107,7 +108,7 @@ internal class SavePdfOperation : OperationBase
                         OnProgress(Math.Min(current, max), max);
                     }
 
-                    var progress = new ProgressHandler(singleFile ? (current, max) =>
+                    var progress = new ProgressHandler(singleFile ? (NAPS2.Util.ProgressCallback)((current, max) =>
                     {
                         Volatile.Write(ref completed, current);
                         ReportPdfProgress();
@@ -125,7 +126,7 @@ internal class SavePdfOperation : OperationBase
                             DiagnosticLog.Write("SavePdf",
                                 $"pagesComplete={current}/{max} prepared={prepared}/{prepareTotal} elapsedMs={at}");
                         }
-                    } : null, CancelToken);
+                    }) : null, CancelToken);
                     result = await RunWithRetry(async () =>
                             await WaitForFileNotInUse(currentFileName) &&
                             await _pdfExporter.Export(currentFileName, imagesForFile,
