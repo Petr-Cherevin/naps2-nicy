@@ -37,17 +37,19 @@ public class PdfExporter
 
     public Task<bool> Export(string path, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null)
-        => Export(new OutputPathOrStream(path, null), images, exportParams, ocrParams, progress, diagnostics);
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
+        => Export(new OutputPathOrStream(path, null), images, exportParams, ocrParams, progress, diagnostics,
+            preparationProgress);
 
     public Task<bool> Export(Stream stream, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null)
-        => Export(new OutputPathOrStream(null, stream), images, exportParams, ocrParams, progress, diagnostics);
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
+        => Export(new OutputPathOrStream(null, stream), images, exportParams, ocrParams, progress, diagnostics,
+            preparationProgress);
 
     private async Task<bool> Export(OutputPathOrStream output, ICollection<ProcessedImage> images,
         PdfExportParams? exportParams = null, OcrParams? ocrParams = null, ProgressHandler progress = default,
-        Action<string>? diagnostics = null)
+        Action<string>? diagnostics = null, Action<int, int>? preparationProgress = null)
     {
         return await Task.Run(async () =>
         {
@@ -146,8 +148,18 @@ public class PdfExporter
                         .Step(WriteToPdfSharpStep)
                         .Run();
 
+                int checkedPages = 0;
+                int pagesToCheck = pdfPages.Count;
                 var pdfPagesPrePipeline = ocrEngine != null
-                    ? Pipeline.For(pdfPages).Step(CheckIfOcrNeededStep).Run()
+                    ? Pipeline.For(pdfPages).Step(state =>
+                    {
+                        var result = CheckIfOcrNeededStep(state);
+                        int done = Interlocked.Increment(ref checkedPages);
+                        preparationProgress?.Invoke(done, pagesToCheck);
+                        if (done == 1 || done == pagesToCheck || done % 16 == 0)
+                            Trace($"pdfTextChecked={done}/{pagesToCheck}");
+                        return result;
+                    }).Run()
                     : Task.FromResult(pdfPages);
 
                 await pdfPagesPrePipeline;
@@ -429,7 +441,9 @@ public class PdfExporter
 
     private PageExportState CheckIfOcrNeededStep(PageExportState state)
     {
-        if (state.CancelToken.IsCancellationRequested) return state;
+        // CachedOnly and no OCR result: nothing will be recognized, so scanning
+        // the PDF text layer would do expensive work for no benefit.
+        if (state.CancelToken.IsCancellationRequested || state.SkipOcr) return state;
         try
         {
             if (state.Image.Storage is ImageFileStorage fileStorage)
@@ -448,10 +462,6 @@ public class PdfExporter
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not import PDF page for possible OCR, falling back to non-OCR path");
-        }
-        if (state.SkipOcr)
-        {
-            state.NeedsOcr = false;
         }
         return state;
     }

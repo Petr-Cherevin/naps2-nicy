@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using NAPS2.EtoForms;
 using NAPS2.ImportExport;
 using NAPS2.ImportExport.Email;
@@ -96,15 +97,33 @@ internal class SavePdfOperation : OperationBase
                     Status.StatusText = string.Format(MiscResources.SavingFormat, Path.GetFileName(currentFileName));
                     InvokeStatusChanged();
 
+                    int prepared = 0, prepareTotal = 0, completed = 0;
+                    bool hadPreparation = false;
+                    void ReportPdfProgress()
+                    {
+                        if (!singleFile) return;
+                        int max = imagesForFile.Length + Volatile.Read(ref prepareTotal);
+                        int current = Volatile.Read(ref prepared) + Volatile.Read(ref completed);
+                        OnProgress(Math.Min(current, max), max);
+                    }
+
                     var progress = new ProgressHandler(singleFile ? (current, max) =>
                     {
-                        OnProgress(current, max);
+                        Volatile.Write(ref completed, current);
+                        ReportPdfProgress();
+                        if (hadPreparation && current > 0)
+                        {
+                            Status.StatusText = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru"
+                                ? $"Сборка PDF: обработано страниц {current} из {max}"
+                                : $"Assembling PDF: {current} of {max} pages";
+                            InvokeStatusChanged();
+                        }
                         long at = saveTimer.ElapsedMilliseconds;
                         if (current == max || current == 0 || at - lastLoggedAt >= 1000)
                         {
                             lastLoggedAt = at;
                             DiagnosticLog.Write("SavePdf",
-                                $"progress={current}/{max} elapsedMs={at}");
+                                $"pagesComplete={current}/{max} prepared={prepared}/{prepareTotal} elapsedMs={at}");
                         }
                     } : null, CancelToken);
                     result = await RunWithRetry(async () =>
@@ -115,7 +134,32 @@ internal class SavePdfOperation : OperationBase
                                 {
                                     OcrScope = ocrScope
                                 },
-                                ocrParams, progress, message => DiagnosticLog.Write("PdfPipeline", message)),
+                                ocrParams, progress, message =>
+                                {
+                                    DiagnosticLog.Write("PdfPipeline", message);
+                                    if (message.StartsWith("stage=finalizePdfSharp") ||
+                                        message.StartsWith("stage=passthroughMerge") ||
+                                        message.StartsWith("stage=writeMergedPdf"))
+                                        DiagnosticLog.SampleProcess();
+                                },
+                                (done, total) =>
+                                {
+                                    hadPreparation = true;
+                                    Volatile.Write(ref prepareTotal, total);
+                                    Volatile.Write(ref prepared, done);
+                                    if (singleFile)
+                                    {
+                                        Status.ProgressType = OperationProgressType.BarOnly;
+                                        Status.StatusText =
+                                            CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru"
+                                                ? $"Проверка страниц PDF: {done} из {total}"
+                                                : $"Checking PDF pages: {done} of {total}";
+                                        ReportPdfProgress();
+                                    }
+                                    if (done == 1 || done == total || done % 16 == 0)
+                                        DiagnosticLog.Write("PdfPrepare",
+                                            $"checked={done}/{total} elapsedMs={saveTimer.ElapsedMilliseconds}");
+                                }),
                         GetSaveErrorMessage);
                     DiagnosticLog.Write("SavePdf",
                         $"fileDone index={i + 1}/{imagesByFile.Length} pages={imagesForFile.Length} " +
