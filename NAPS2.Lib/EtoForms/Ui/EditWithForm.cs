@@ -48,7 +48,7 @@ internal class EditWithForm : EtoDialogBase
                 .NaturalWidth(500).Height(50)).ToList();
 
         LayoutController.Content = L.Column(
-            L.Scrollable(L.Column(editorButtons)).Scale(),
+            L.Scrollable(L.Column(editorButtons.ToArray())).Scale(),
             EtoPlatform.Current.IsWindows
                 ? C.Button(PreviewEditingText.BrowseExecutable, BrowseForExecutable).NaturalWidth(500)
                 : C.None()
