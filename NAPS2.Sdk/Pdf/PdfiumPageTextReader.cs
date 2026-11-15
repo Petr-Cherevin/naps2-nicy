@@ -71,8 +71,7 @@ internal static class PdfiumPageTextReader
             }
             else
             {
-                using var imageObj = PdfiumImageExtractor.GetSingleImageObject(page, true);
-                kind = imageObj != null ? PdfPageTextKind.HiddenOverScan : PdfPageTextKind.Visible;
+                kind = IsScanWithHiddenText(page) ? PdfPageTextKind.HiddenOverScan : PdfPageTextKind.Visible;
             }
         }
         lock (TextKindCache)
@@ -83,6 +82,60 @@ internal static class PdfiumPageTextReader
             }
         }
         return kind;
+    }
+
+    /// <summary>
+    /// The fraction of the page size that a scanned image's size and position can differ from the page's by.
+    /// </summary>
+    private const float ScanCoverageTolerance = 0.1f;
+
+    // This is like PdfiumImageExtractor.GetSingleImageObject, but more lenient about the image's position. That method
+    // is for extracting the image as a replacement for the page, so it needs an exact fit. Here we only need to know
+    // if the page is essentially a scan, and PDFs from other applications often have images that are slightly smaller
+    // than the page.
+    private static bool IsScanWithHiddenText(PdfPage page)
+    {
+        if (page.AnnotCount > 0)
+        {
+            return false;
+        }
+        bool hasImage = false;
+        var objectCount = page.ObjectCount;
+        for (int i = 0; i < objectCount; i++)
+        {
+            // Note that objects from PdfPage.GetObject don't need to be disposed
+            var pageObj = page.GetObject(i);
+            if (pageObj.IsImage && !hasImage && CoversPage(pageObj.Matrix, page.Width, page.Height))
+            {
+                hasImage = true;
+            }
+            else if (pageObj.IsText && (!hasImage || PdfiumImageExtractor.IsInvisibleText(pageObj)))
+            {
+                // Skip invisible text or text that's underneath the image
+            }
+            else
+            {
+                // We have other visible objects than a single image
+                return false;
+            }
+        }
+        return hasImage;
+    }
+
+    /// <summary>
+    /// Checks if an image with the given transformation matrix is upright and covers (almost all of) the page.
+    /// </summary>
+    internal static bool CoversPage(PdfMatrix matrix, float pageWidth, float pageHeight)
+    {
+        float xTolerance = pageWidth * ScanCoverageTolerance;
+        float yTolerance = pageHeight * ScanCoverageTolerance;
+        return Math.Abs(matrix.a - pageWidth) <= xTolerance &&
+               Math.Abs(matrix.d - pageHeight) <= yTolerance &&
+               Math.Abs(matrix.e) <= xTolerance &&
+               Math.Abs(matrix.f) <= yTolerance &&
+               // No meaningful rotation or skew
+               Math.Abs(matrix.b) <= yTolerance / 10 &&
+               Math.Abs(matrix.c) <= xTolerance / 10;
     }
 
     public static bool IsPdfStorage(IImageStorage storage) => storage switch

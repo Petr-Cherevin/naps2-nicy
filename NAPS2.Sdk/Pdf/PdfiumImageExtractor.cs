@@ -158,7 +158,7 @@ internal static class PdfiumImageExtractor
         return imageObject;
     }
 
-    private static bool IsInvisibleText(PdfPageObject pageObj)
+    internal static bool IsInvisibleText(PdfPageObject pageObj)
     {
         return pageObj.TextRenderMode == TextRenderMode.Invisible
                || pageObj is { TextRenderMode: TextRenderMode.Fill, FillColor.a: 0 }

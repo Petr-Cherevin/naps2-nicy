@@ -114,7 +114,7 @@ public class ImageListActions
         {
             return;
         }
-        if (await _exportController.SavePdf(images, _notify))
+        if (await _exportController.ExtractPdf(images, _notify))
         {
             // The images may already be gone if "delete after saving" is turned on
             var remaining = images.Where(_imageList.Images.Contains).ToList();

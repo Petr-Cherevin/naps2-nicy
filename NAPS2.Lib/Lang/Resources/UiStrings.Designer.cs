@@ -2145,6 +2145,12 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string ScanFileName {
+            get {
+                return ResourceManager.GetString("ScanFileName", resourceCulture);
+            }
+        }
+        
         internal static string RecognizeAll {
             get {
                 return ResourceManager.GetString("RecognizeAll", resourceCulture);

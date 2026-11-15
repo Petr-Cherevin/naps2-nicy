@@ -163,7 +163,7 @@
     <value>Переместить ниже</value>
   </data>
   <data name="MoveUpDown" xml:space="preserve">
-    <value>Move Up/Down</value>
+    <value>Выше/Ниже</value>
   </data>
   <data name="Reorder" xml:space="preserve">
     <value>Изменить порядок</value>
@@ -1018,22 +1018,22 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
     <value>Toggle View</value>
   </data>
   <data name="ToolbarSettings" xml:space="preserve">
-    <value>Toolbar Settings</value>
+    <value>Настройки панелей</value>
   </data>
   <data name="CustomizeToolbar" xml:space="preserve">
     <value>Customize Toolbar</value>
   </data>
   <data name="Toolbar" xml:space="preserve">
-    <value>Toolbar</value>
+    <value>Панель инструментов</value>
   </data>
   <data name="ProfilesToolbar" xml:space="preserve">
-    <value>Profiles toolbar</value>
+    <value>Панель профилей</value>
   </data>
   <data name="PositionLabel" xml:space="preserve">
-    <value>Position:</value>
+    <value>Положение:</value>
   </data>
   <data name="ButtonsLabel" xml:space="preserve">
-    <value>Buttons:</value>
+    <value>Кнопки:</value>
   </data>
   <data name="PasteAtEnd" xml:space="preserve">
     <value>Вставить в конец</value>
@@ -1136,5 +1136,8 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   </data>
   <data name="RecognizeExistingTextPrompt" xml:space="preserve">
     <value>У некоторых страниц уже есть текст, распознанный в другой программе. Распознать их заново?</value>
+  </data>
+  <data name="ScanFileName" xml:space="preserve">
+    <value>Скан</value>
   </data>
 </root>

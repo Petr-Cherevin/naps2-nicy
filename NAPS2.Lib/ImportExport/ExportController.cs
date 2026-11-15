@@ -59,6 +59,53 @@ public class ExportController : IExportController
         return false;
     }
 
+    /// <summary>
+    /// Saves the given images (a subset of the image list) to a new PDF file. This always prompts for the file, with
+    /// a default name based on the page numbers of the images.
+    /// </summary>
+    public async Task<bool> ExtractPdf(ICollection<UiImage> uiImages, ISaveNotify notify)
+    {
+        using var images = GetSnapshots(uiImages);
+        if (!images.Any())
+        {
+            return false;
+        }
+        if (!_dialogHelper.PromptToSavePdf(GetExtractDefaultPath(uiImages), out var savePath))
+        {
+            return false;
+        }
+        return await DoSavePdf(images, notify, savePath!);
+    }
+
+    private string GetExtractDefaultPath(ICollection<UiImage> uiImages)
+    {
+        var allImages = _imageList.Images;
+        var pageNumbers = uiImages.Select(x => allImages.IndexOf(x) + 1).Where(x => x > 0);
+        var suffix = ExtractFileNamer.GetPageSuffix(pageNumbers, allImages.Count);
+
+        // The name is based on the file the pages came from, or else the configured default name
+        var basePath = GetDefaultPath(null, uiImages, null);
+        if (string.IsNullOrEmpty(basePath))
+        {
+            basePath = _config.Get(c => c.PdfSettings.DefaultFileName);
+        }
+        string folder = "";
+        string baseName = UiStrings.ScanFileName;
+        if (!string.IsNullOrEmpty(basePath))
+        {
+            try
+            {
+                folder = Path.GetDirectoryName(basePath) ?? "";
+                baseName = Path.GetFileNameWithoutExtension(basePath);
+            }
+            catch (ArgumentException)
+            {
+                // Fall back to the generic name
+            }
+        }
+        return Path.Combine(folder, $"{baseName}_{suffix}.pdf");
+    }
+
     public async Task<bool> SaveImages(ICollection<UiImage> uiImages, ISaveNotify notify)
     {
         using var images = GetSnapshots(uiImages);

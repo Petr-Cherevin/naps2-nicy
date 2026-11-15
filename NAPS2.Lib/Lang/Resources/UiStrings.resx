@@ -1254,4 +1254,7 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="RecognizeExistingTextPrompt" xml:space="preserve">
     <value>Some of these pages already have text that was recognized in another application. Recognize them again?</value>
   </data>
+  <data name="ScanFileName" xml:space="preserve">
+    <value>Scan</value>
+  </data>
 </root>
