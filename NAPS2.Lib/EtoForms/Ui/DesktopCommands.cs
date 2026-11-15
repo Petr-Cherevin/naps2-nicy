@@ -92,6 +92,14 @@ public class DesktopCommands
         {
             Text = UiStrings.RecognizeAll
         };
+        ClearTextSelected = new ActionCommand(() => desktopController.ClearText(imageListActions.SelectedImages))
+        {
+            Text = UiStrings.ClearTextSelected
+        };
+        ClearTextAll = new ActionCommand(() => desktopController.ClearText(imageList.Images))
+        {
+            Text = UiStrings.ClearTextAll
+        };
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
             Text = UiStrings.ExtractSelected,
@@ -462,6 +470,8 @@ public class DesktopCommands
     public ActionCommand Recognize { get; set; }
     public ActionCommand OcrSettings { get; set; }
     public ActionCommand RecognizeAll { get; set; }
+    public ActionCommand ClearTextSelected { get; set; }
+    public ActionCommand ClearTextAll { get; set; }
     public ActionCommand ExtractSelected { get; set; }
     public ActionCommand Import { get; set; }
     public ActionCommand SaveAll { get; set; }

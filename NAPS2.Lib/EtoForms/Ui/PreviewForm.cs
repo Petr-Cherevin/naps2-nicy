@@ -108,6 +108,11 @@ public class PreviewForm : EtoDialogBase
             IconName = "copy",
             Enabled = false
         };
+        ClearTextCommand = new ActionCommand(ClearText)
+        {
+            Text = UiStrings.ClearText,
+            IconName = "text_clear"
+        };
 
         _previewKsm = new KeyboardShortcutManager();
         EtoPlatform.Current.HandleKeyDown(this, _previewKsm.Perform);
@@ -194,6 +199,7 @@ public class PreviewForm : EtoDialogBase
     protected ActionCommand RedactApplyCommand { get; }
     protected ActionCommand ShowTextCommand { get; }
     protected ActionCommand CopyTextCommand { get; }
+    protected ActionCommand ClearTextCommand { get; }
 
     protected UiImageList ImageList { get; }
 
@@ -288,6 +294,7 @@ public class PreviewForm : EtoDialogBase
             [PreviewToolbarLayout.RedactApply] = MakeToolButton(RedactApplyCommand),
             [PreviewToolbarLayout.ShowText] = MakeToolButton(ShowTextCommand),
             [PreviewToolbarLayout.CopyText] = MakeToolButton(CopyTextCommand),
+            [PreviewToolbarLayout.ClearText] = MakeToolButton(ClearTextCommand),
             [PreviewToolbarLayout.Split] = MakeToolButton(Commands.Split),
             [PreviewToolbarLayout.Combine] = MakeToolButton(Commands.Combine),
             [PreviewToolbarLayout.EditWithApp] = _editWithAppButton,
@@ -471,6 +478,28 @@ public class PreviewForm : EtoDialogBase
             SetText(text);
             _textVisibility.IsVisible = true;
         }
+        else
+        {
+            // The text view may have been shown with a progress message
+            _textVisibility.IsVisible = false;
+            SetText(null);
+        }
+    }
+
+    private async Task ClearText()
+    {
+        Commands.ClearTextSelected.Execute();
+        if (_textVisibility.IsVisible)
+        {
+            await RefreshText();
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        // Make sure the desktop reflects any changes to the text of pages made from this window
+        _pageTextProvider.NotifyStatusChanged();
     }
 
     private void SetText(PageText? text)
@@ -552,6 +581,9 @@ public class PreviewForm : EtoDialogBase
             return null;
         }
         ShowTextCommand.Enabled = false;
+        // OCR can take a while, so show that something is happening where the text will appear
+        _textView.Message = UiStrings.RecognizingText;
+        _textVisibility.IsVisible = true;
         try
         {
             var text = await _pageTextProvider.Recognize(image);

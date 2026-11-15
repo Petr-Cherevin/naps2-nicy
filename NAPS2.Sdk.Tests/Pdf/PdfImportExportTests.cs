@@ -248,6 +248,23 @@ public class PdfImportExportTests : ContextualTests
     }
 
     [Fact]
+    public async Task RemoveTextFromScanWithHiddenText()
+    {
+        File.WriteAllBytes(_importPath, PdfResources.ocr_test_output);
+        var images = await _importer.Import(_importPath).ToListAsync();
+
+        await _exporter.Export(_exportPath, images);
+        PdfAsserts.AssertContainsTextOnce("ADVERTISEMENT.", _exportPath);
+
+        // With the marker transform, the page is exported as an image without its original text layer
+        var cleared = images.Select(x => x.WithTransform(new RemoveTextTransform())).ToList();
+        var secondExportPath = P("export2.pdf");
+        await _exporter.Export(secondExportPath, cleared);
+        PdfAsserts.AssertPageCount(1, secondExportPath);
+        PdfAsserts.AssertDoesNotContainText("ADVERTISEMENT.", secondExportPath);
+    }
+
+    [Fact]
     public async Task ReadPageTextWithPositions()
     {
         var images = await _importer.Import(_importPath).ToListAsync();

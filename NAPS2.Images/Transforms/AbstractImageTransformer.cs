@@ -36,6 +36,9 @@ internal abstract class AbstractImageTransformer<TImage> where TImage : IMemoryI
                 return PerformTransform(image, cropTransform);
             case RedactTransform redactTransform:
                 return PerformTransform(image, redactTransform);
+            case RemoveTextTransform:
+                // This only affects how the image is exported
+                return image;
             case ScaleTransform scaleTransform:
                 return PerformTransform(image, scaleTransform);
             case ResizeTransform resizeTransform:

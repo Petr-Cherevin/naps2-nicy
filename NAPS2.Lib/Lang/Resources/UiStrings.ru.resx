@@ -1146,4 +1146,25 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="UnofficialBuild" xml:space="preserve">
     <value>Неофициальная сборка на основе NAPS2</value>
   </data>
+  <data name="ClearText" xml:space="preserve">
+    <value>Очистить текст</value>
+  </data>
+  <data name="ClearTextSelected" xml:space="preserve">
+    <value>Очистить текст: выбранные</value>
+  </data>
+  <data name="ClearTextAll" xml:space="preserve">
+    <value>Очистить текст: всё</value>
+  </data>
+  <data name="ClearTextConfirm" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="ClearTextReencodeWarning" xml:space="preserve">
+    <value>У некоторых страниц текст нельзя убрать, не изменив изображение. Такие страницы будут сохранены заново как картинки: качество может немного ухудшиться, а размер файла — измениться.</value>
+  </data>
+  <data name="ClearTextAutoOcrWarning" xml:space="preserve">
+    <value>Включено автоматическое распознавание: при сохранении PDF очищенные страницы будут распознаны заново. Чтобы текст не появился снова, выключите авторежим в меню кнопки «Распознать».</value>
+  </data>
+  <data name="RecognizingText" xml:space="preserve">
+    <value>Идёт распознавание...</value>
+  </data>
 </root>

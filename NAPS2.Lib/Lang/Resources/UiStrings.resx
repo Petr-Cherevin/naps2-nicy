@@ -1263,4 +1263,25 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="UnofficialBuild" xml:space="preserve">
     <value>Unofficial build based on NAPS2</value>
   </data>
+  <data name="ClearText" xml:space="preserve">
+    <value>Clear Text</value>
+  </data>
+  <data name="ClearTextSelected" xml:space="preserve">
+    <value>Clear Text: Selected</value>
+  </data>
+  <data name="ClearTextAll" xml:space="preserve">
+    <value>Clear Text: All</value>
+  </data>
+  <data name="ClearTextConfirm" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="ClearTextReencodeWarning" xml:space="preserve">
+    <value>For some pages, the text can't be removed without changing the image. These pages will be saved again as images: the quality may be slightly reduced and the file size may change.</value>
+  </data>
+  <data name="ClearTextAutoOcrWarning" xml:space="preserve">
+    <value>Automatic recognition is turned on, so the cleared pages will be recognized again when a PDF is saved. To keep the text from coming back, turn off the automatic mode in the Recognize menu.</value>
+  </data>
+  <data name="RecognizingText" xml:space="preserve">
+    <value>Recognizing...</value>
+  </data>
 </root>

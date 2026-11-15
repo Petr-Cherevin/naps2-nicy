@@ -2145,6 +2145,48 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string ClearText {
+            get {
+                return ResourceManager.GetString("ClearText", resourceCulture);
+            }
+        }
+        
+        internal static string ClearTextSelected {
+            get {
+                return ResourceManager.GetString("ClearTextSelected", resourceCulture);
+            }
+        }
+        
+        internal static string ClearTextAll {
+            get {
+                return ResourceManager.GetString("ClearTextAll", resourceCulture);
+            }
+        }
+        
+        internal static string ClearTextConfirm {
+            get {
+                return ResourceManager.GetString("ClearTextConfirm", resourceCulture);
+            }
+        }
+        
+        internal static string ClearTextReencodeWarning {
+            get {
+                return ResourceManager.GetString("ClearTextReencodeWarning", resourceCulture);
+            }
+        }
+        
+        internal static string ClearTextAutoOcrWarning {
+            get {
+                return ResourceManager.GetString("ClearTextAutoOcrWarning", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizingText {
+            get {
+                return ResourceManager.GetString("RecognizingText", resourceCulture);
+            }
+        }
+        
         internal static string UnofficialBuild {
             get {
                 return ResourceManager.GetString("UnofficialBuild", resourceCulture);

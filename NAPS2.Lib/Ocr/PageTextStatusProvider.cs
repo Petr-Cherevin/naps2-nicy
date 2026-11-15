@@ -42,14 +42,37 @@ public class PageTextStatusProvider
 {
     private readonly ScanningContext _scanningContext;
     private readonly Naps2Config _config;
-    // Remembers which images have had OCR results at some point, so we can tell if the results were lost
-    private readonly ConditionalWeakTable<UiImage, object> _hadOcrResult = new();
+    // Remembers which images have had OCR results at some point, so we can tell if the results were lost. This is
+    // shared as it's a property of the image, not of whatever is asking about it.
+    private static readonly ConditionalWeakTable<UiImage, object> _hadOcrResult = new();
+
+    /// <summary>
+    /// Forgets that the image has had OCR results, for when the user has explicitly cleared its text.
+    /// </summary>
+    public static void Forget(UiImage uiImage)
+    {
+        lock (_hadOcrResult)
+        {
+            _hadOcrResult.Remove(uiImage);
+        }
+    }
+
+    /// <summary>
+    /// Whether the image has had OCR results at some point (that haven't since been explicitly cleared).
+    /// </summary>
+    public static bool HasHadOcrResult(UiImage uiImage)
+    {
+        lock (_hadOcrResult)
+        {
+            return _hadOcrResult.TryGetValue(uiImage, out _);
+        }
+    }
 
     public PageTextStatusProvider(ScanningContext scanningContext, Naps2Config config)
     {
         _scanningContext = scanningContext;
         _config = config;
-        _scanningContext.OcrRequestQueue.ResultAvailable += (_, _) => StatusChanged?.Invoke(this, EventArgs.Empty);
+        _scanningContext.OcrRequestQueue.ResultsChanged += (_, _) => StatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -72,6 +95,11 @@ public class PageTextStatusProvider
                     }
                 }
                 return PageTextStatus.Recognized;
+            }
+            if (image.TransformState.Transforms.Any(x => x is RemoveTextTransform))
+            {
+                // The user has explicitly cleared the text, so the page is now just a page without text
+                return PageTextStatus.None;
             }
             var originalKind = ExistingText.GetOriginalKind(image);
             if (originalKind != ExistingTextKind.None)

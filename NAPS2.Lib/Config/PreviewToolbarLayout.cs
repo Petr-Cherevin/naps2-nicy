@@ -33,6 +33,7 @@ public static class PreviewToolbarLayout
     public const string RedactApply = "redactApply";
     public const string ShowText = "showText";
     public const string CopyText = "copyText";
+    public const string ClearText = "clearText";
     public const string Split = "split";
     public const string Combine = "combine";
     public const string EditWithApp = "editWithApp";
@@ -52,7 +53,7 @@ public static class PreviewToolbarLayout
         Rotate, Crop, BrightCont, HueSat, BlackWhite, Sharpen, DocumentCorrection, Compress,
         Redact, RedactColor, RedactUndo, RedactApply,
         "sep3",
-        ShowText, CopyText,
+        ShowText, CopyText, ClearText,
         "sep4",
         Split, Combine, EditWithApp, EditWithPick,
         "sep5",

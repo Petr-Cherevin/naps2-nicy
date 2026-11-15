@@ -4,6 +4,7 @@ using Eto.Forms;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using NAPS2.EtoForms.Notifications;
+using NAPS2.EtoForms.Ui;
 using NAPS2.ImportExport;
 using NAPS2.ImportExport.Images;
 using NAPS2.Ocr;
@@ -434,6 +435,103 @@ public class DesktopController
         else if (_imageList.Images.Any() && Confirm(UiStrings.RecognizeAllPrompt))
         {
             Recognize(_imageList.Images);
+        }
+    }
+
+    /// <summary>
+    /// Removes the text from the given images: OCR results are discarded, and scans that were imported with hidden
+    /// text from OCR elsewhere are marked so the text isn't exported. Pages with real (visible) text aren't affected.
+    /// </summary>
+    public void ClearText(ICollection<UiImage> images)
+    {
+        var ocrEngine = _scanningContext.OcrEngine;
+        var ocrParams = _config.ManualOcrParams();
+        var withOcrResult = new List<ProcessedImage>();
+        var withStatusOnly = new List<UiImage>();
+        var toMark = new List<UiImage>();
+        bool willReencode = false;
+        try
+        {
+            foreach (var uiImage in images)
+            {
+                var image = uiImage.GetClonedImage();
+                bool hasOcrResult = ocrEngine != null && !string.IsNullOrEmpty(ocrParams.LanguageCode) &&
+                                    _scanningContext.OcrRequestQueue.GetCachedResult(ocrEngine, image, ocrParams) != null;
+                if (hasOcrResult)
+                {
+                    withOcrResult.Add(image);
+                }
+                else
+                {
+                    image.Dispose();
+                }
+                using var current = uiImage.GetClonedImage();
+                bool unchanged = current.TransformState.IsEmpty;
+                bool alreadyMarked = current.TransformState.Transforms.Any(x => x is RemoveTextTransform);
+                var originalKind = ExistingText.GetOriginalKind(current);
+                // Pages with real text are left alone as long as they're still exported as-is. Otherwise, anything
+                // that came with text needs to be marked so that the text isn't exported (or shown as lost).
+                if (!alreadyMarked && originalKind != ExistingTextKind.None &&
+                    !(originalKind == ExistingTextKind.Visible && unchanged))
+                {
+                    toMark.Add(uiImage);
+                    willReencode |= unchanged;
+                }
+                else if (!hasOcrResult && PageTextStatusProvider.HasHadOcrResult(uiImage))
+                {
+                    withStatusOnly.Add(uiImage);
+                }
+            }
+            if (withOcrResult.Count == 0 && toMark.Count == 0 && withStatusOnly.Count == 0)
+            {
+                return;
+            }
+
+            var warnings = new List<string>();
+            if (willReencode)
+            {
+                warnings.Add(UiStrings.ClearTextReencodeWarning);
+            }
+            if (_config.Get(c => c.EnableOcr) && (withOcrResult.Count > 0 || toMark.Count > 0))
+            {
+                warnings.Add(UiStrings.ClearTextAutoOcrWarning);
+            }
+            if (warnings.Count > 0)
+            {
+                var prompt = new ChoiceForm(_config)
+                {
+                    Title = UiStrings.ClearText,
+                    Message = string.Join(Environment.NewLine + Environment.NewLine, warnings),
+                    Choices = [UiStrings.ClearTextConfirm]
+                };
+                prompt.ShowModal();
+                if (prompt.SelectedChoice != 0)
+                {
+                    return;
+                }
+            }
+
+            foreach (var image in withOcrResult)
+            {
+                _scanningContext.OcrRequestQueue.RemoveCachedResult(ocrEngine!, image, ocrParams);
+            }
+            foreach (var uiImage in images)
+            {
+                PageTextStatusProvider.Forget(uiImage);
+            }
+            if (toMark.Count > 0)
+            {
+                _imageList.Mutate(new ImageListMutation.AddTransforms([new RemoveTextTransform()]),
+                    ListSelection.From(toMark));
+            }
+            _scanningContext.OcrRequestQueue.NotifyResultsChanged();
+        }
+        finally
+        {
+            foreach (var image in withOcrResult)
+            {
+                image.Dispose();
+            }
         }
     }
 

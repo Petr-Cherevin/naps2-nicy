@@ -50,10 +50,36 @@ internal class OcrRequestQueue
     }
 
     /// <summary>
-    /// Occurs when an OCR request has completed, so its result (if any) is available from GetCachedResult. This can
-    /// be raised on any thread.
+    /// Occurs when the results available from GetCachedResult may have changed, e.g. when an OCR request has
+    /// completed. This can be raised on any thread.
     /// </summary>
-    public event EventHandler? ResultAvailable;
+    public event EventHandler? ResultsChanged;
+
+    /// <summary>
+    /// Raises ResultsChanged, for when something else that affects how the results are used has changed.
+    /// </summary>
+    public void NotifyResultsChanged() => ResultsChanged?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Discards the result of a previously completed OCR request for the image, if there is one.
+    /// </summary>
+    /// <returns>True if there was a result to discard.</returns>
+    public bool RemoveCachedResult(IOcrEngine ocrEngine, ProcessedImage image, OcrParams ocrParams)
+    {
+        var reqParams = new OcrRequestParams(image.GetWeakReference(), ocrEngine, ocrParams);
+        bool removed;
+        lock (this)
+        {
+            removed = _requestCache.TryGetValue(reqParams, out var req) &&
+                      req.State == OcrRequestState.Completed &&
+                      _requestCache.Remove(reqParams);
+        }
+        if (removed)
+        {
+            NotifyResultsChanged();
+        }
+        return removed;
+    }
 
     /// <summary>
     /// Gets the result of a previously completed OCR request for the image, or null if there isn't one.
@@ -108,7 +134,7 @@ internal class OcrRequestQueue
         EnsureWorkerThreads(scanningContext);
         if (req.CompletedTask.IsCompleted)
         {
-            ResultAvailable?.Invoke(this, EventArgs.Empty);
+            NotifyResultsChanged();
         }
         // Return null if canceled
         return req.CompletedTask.IsCompleted ? req.CompletedTask.Result : null;

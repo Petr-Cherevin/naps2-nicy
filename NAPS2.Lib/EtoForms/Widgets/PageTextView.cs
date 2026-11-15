@@ -31,6 +31,24 @@ public class PageTextView : Panel
         _layoutView.SizeChanged += (_, _) => _layoutView.Invalidate();
     }
 
+    /// <summary>
+    /// Shows a message in place of any text, e.g. while the text is being generated.
+    /// </summary>
+    public string Message
+    {
+        set
+        {
+            _text = null;
+            Content = new Label
+            {
+                Text = value,
+                TextAlignment = TextAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextColor = Colors.Gray
+            };
+        }
+    }
+
     public PageText? Text
     {
         get => _text;

@@ -2128,5 +2128,25 @@ namespace NAPS2 {
                 return ((byte[])(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] text_clear_32 {
+            get {
+                object obj = ResourceManager.GetObject("text_clear_32", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] text_clear_16 {
+            get {
+                object obj = ResourceManager.GetObject("text_clear_16", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

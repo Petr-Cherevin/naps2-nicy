@@ -68,6 +68,11 @@ public class PageTextProvider
         {
             return PageTextSource.Ocr;
         }
+        if (image.TransformState.Transforms.Any(x => x is RemoveTextTransform))
+        {
+            // The user has explicitly cleared the original text
+            return PageTextSource.None;
+        }
         var pdfText = ReadPdfText(image);
         if (pdfText == null || pdfText.IsEmpty)
         {
@@ -129,6 +134,11 @@ public class PageTextProvider
             tempImageFilePath, ocrParams, OcrPriority.Foreground, cancelToken);
         return result == null ? null : PageText.FromOcrResult(result);
     }
+
+    /// <summary>
+    /// Signals that the text status of some page may have changed, so anything displaying it should be updated.
+    /// </summary>
+    public void NotifyStatusChanged() => _scanningContext.OcrRequestQueue.NotifyResultsChanged();
 
     private static PageText? ReadPdfText(ProcessedImage image)
     {

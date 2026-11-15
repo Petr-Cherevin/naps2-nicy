@@ -32,6 +32,12 @@ public class ImageListActions
 
     private ListSelection<UiImage>? Selection => SelectionFunc?.Invoke();
 
+    /// <summary>
+    /// The images that actions apply to: either the explicit selection this instance was created with, or the
+    /// current selection in the image list.
+    /// </summary>
+    public List<UiImage> SelectedImages => (Selection ?? _imageList.Selection).ToList();
+
     public ImageListActions WithSelection(Func<ListSelection<UiImage>> selectionFunc)
     {
         return new ImageListActions(_imageList, _operationFactory, _operationProgress, _config, _thumbnailController,

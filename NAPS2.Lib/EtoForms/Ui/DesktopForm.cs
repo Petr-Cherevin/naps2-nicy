@@ -38,7 +38,7 @@ public abstract class DesktopForm : EtoFormBase
     protected readonly ListProvider<Command> _manualDuplexPreviewCommands = new();
     protected readonly ListProvider<Command> _autoRecognizeCommands = new();
     private readonly ContextMenu _contextMenu = new();
-    private readonly UITimer _badgeRefreshTimer = new() { Interval = 0.5 };
+    private int _badgeRefreshQueued;
     private readonly ActionCommand _pasteAfterCommand;
     private readonly ActionCommand _pasteAtEndCommand;
     private UiImage? _contextMenuImage;
@@ -112,12 +112,7 @@ public abstract class DesktopForm : EtoFormBase
 
         _listView = EtoPlatform.Current.CreateListView(imageListViewBehavior);
         // The thumbnails have badges that depend on OCR results, which can complete in bulk, so we batch the updates
-        _badgeRefreshTimer.Elapsed += (_, _) =>
-        {
-            _badgeRefreshTimer.Stop();
-            _listView.RegenerateImages();
-        };
-        imageListViewBehavior.BadgesChanged += (_, _) => Invoker.Current.InvokeDispatch(_badgeRefreshTimer.Start);
+        imageListViewBehavior.BadgesChanged += (_, _) => QueueBadgeRefresh();
         _listView.Selection = ImageList.Selection;
         _listView.ItemClicked += ListViewItemClicked;
         _listView.Drop += ListViewDrop;
@@ -385,6 +380,9 @@ public abstract class DesktopForm : EtoFormBase
             CreateToolbarButtonWithMenu(Commands.Recognize, DesktopToolbarMenuType.Recognize, new MenuProvider()
                 .Append(Commands.RecognizeAll)
                 .Separator()
+                .Append(Commands.ClearTextSelected)
+                .Append(Commands.ClearTextAll)
+                .Separator()
                 .Append(Commands.OcrSettings)
                 .Separator()
                 .Dynamic(_autoRecognizeCommands));
@@ -594,6 +592,21 @@ public abstract class DesktopForm : EtoFormBase
             }).ToImmutableList<Command>();
     }
 
+    // Redraws the thumbnails (and so their badges) shortly after a change. Changes often come in bulk and from other
+    // threads, so they're batched into a single refresh on the UI thread.
+    private void QueueBadgeRefresh()
+    {
+        if (Interlocked.Exchange(ref _badgeRefreshQueued, 1) == 1)
+        {
+            return;
+        }
+        Task.Delay(300).ContinueWith(_ => Invoker.Current.InvokeDispatch(() =>
+        {
+            Interlocked.Exchange(ref _badgeRefreshQueued, 0);
+            _listView.RegenerateImages();
+        }));
+    }
+
     /// <summary>
     /// Changes the interface language, which recreates the desktop window.
     /// </summary>
@@ -626,7 +639,8 @@ public abstract class DesktopForm : EtoFormBase
             Commands.RotateMenu.Enabled = Commands.MoveUp.Enabled = Commands.MoveDown.Enabled =
                 Commands.RotateLeftCompact.Enabled = Commands.RotateRightCompact.Enabled =
                     Commands.Rotate180Compact.Enabled = Commands.DeskewCompact.Enabled =
-                        Commands.ExtractSelected.Enabled = Commands.Delete.Enabled = ImageList.Selection.Any();
+                        Commands.ExtractSelected.Enabled = Commands.ClearTextSelected.Enabled =
+                            Commands.Delete.Enabled = ImageList.Selection.Any();
         Commands.SavePdf.Enabled = Commands.SaveImages.Enabled = Commands.ClearAll.Enabled =
             Commands.ReorderMenu.Enabled =
                 Commands.EmailPdf.Enabled = Commands.Print.Enabled = ImageList.Images.Any();
