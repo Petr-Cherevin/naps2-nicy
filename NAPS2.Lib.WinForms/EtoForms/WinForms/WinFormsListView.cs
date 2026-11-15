@@ -295,18 +295,26 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
         }
         _refreshing = true;
         _view.BeginUpdate();
-        ImageList.Clear();
-
-        var images = new List<Image>();
-        foreach (ListViewItem listViewItem in Items)
+        try
         {
-            var item = (T) listViewItem.Tag!;
-            images.Add(ImageList.PartialAppend(item));
-        }
-        ImageList.FinishPartialAppends(images);
+            ImageList.Clear();
 
-        _view.EndUpdate();
-        _refreshing = false;
+            var images = new List<Image>();
+            foreach (ListViewItem listViewItem in Items)
+            {
+                var item = (T) listViewItem.Tag!;
+                images.Add(ImageList.PartialAppend(item));
+            }
+            ImageList.FinishPartialAppends(images);
+        }
+        finally
+        {
+            _view.EndUpdate();
+            _refreshing = false;
+            // Owner-drawn list items don't necessarily repaint when only their cached bitmaps change.
+            // This is important for OCR badges, which can change without any image/list mutation.
+            _view.Invalidate();
+        }
     }
 
     public void ApplyDiffs(ListViewDiffs<T> diffs)
