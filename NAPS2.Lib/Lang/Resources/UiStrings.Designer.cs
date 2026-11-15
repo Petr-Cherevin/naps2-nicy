@@ -2157,6 +2157,30 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
+        internal static string RecognizeSelected {
+            get {
+                return ResourceManager.GetString("RecognizeSelected", resourceCulture);
+            }
+        }
+        
+        internal static string ExtractSelected {
+            get {
+                return ResourceManager.GetString("ExtractSelected", resourceCulture);
+            }
+        }
+        
+        internal static string MoveUpShort {
+            get {
+                return ResourceManager.GetString("MoveUpShort", resourceCulture);
+            }
+        }
+        
+        internal static string MoveDownShort {
+            get {
+                return ResourceManager.GetString("MoveDownShort", resourceCulture);
+            }
+        }
+        
         internal static string RedactColor {
             get {
                 return ResourceManager.GetString("RedactColor", resourceCulture);

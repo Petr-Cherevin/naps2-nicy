@@ -200,6 +200,7 @@ public abstract class DesktopForm : EtoFormBase
                 C.ButtonMenuItem(this, _pasteAtEndCommand),
                 new SeparatorMenuItem(),
                 C.ButtonMenuItem(this, Commands.MoveToPosition),
+                C.ButtonMenuItem(this, Commands.ExtractSelected),
                 new SeparatorMenuItem(),
                 C.ButtonMenuItem(this, Commands.Undo),
                 C.ButtonMenuItem(this, Commands.Redo),
@@ -372,10 +373,10 @@ public abstract class DesktopForm : EtoFormBase
                 .Append(Config.Get(c => c.DisableScannerSharing) ? null : Commands.ScannerSharing));
         if (ShowButton(ToolbarButtons.Profiles))
             CreateToolbarButton(Commands.Profiles);
-        if (ShowButton(ToolbarButtons.Ocr))
-            CreateToolbarButton(Commands.Ocr);
         if (ShowButton(ToolbarButtons.Recognize))
             CreateToolbarButtonWithMenu(Commands.Recognize, DesktopToolbarMenuType.Recognize, new MenuProvider()
+                .Append(Commands.RecognizeSelected)
+                .Separator()
                 .Append(Commands.OcrSettings)
                 .Separator()
                 .Dynamic(_autoRecognizeCommands));
@@ -394,6 +395,8 @@ public abstract class DesktopForm : EtoFormBase
                 .Append(Commands.SaveSelectedImages)
                 .Separator()
                 .Append(Commands.ImageSettings));
+        if (ShowButton(ToolbarButtons.Extract))
+            CreateToolbarButton(Commands.ExtractSelected);
         if (PlatformCompat.System.CanEmail && ShowButton(ToolbarButtons.EmailPdf))
             CreateToolbarButtonWithMenu(Commands.EmailPdf, DesktopToolbarMenuType.EmailPdf, new MenuProvider()
                 .Append(Commands.EmailAll)
@@ -610,7 +613,8 @@ public abstract class DesktopForm : EtoFormBase
             Commands.RotateMenu.Enabled = Commands.MoveUp.Enabled = Commands.MoveDown.Enabled =
                 Commands.RotateLeftCompact.Enabled = Commands.RotateRightCompact.Enabled =
                     Commands.Rotate180Compact.Enabled = Commands.DeskewCompact.Enabled =
-                        Commands.Delete.Enabled = ImageList.Selection.Any();
+                        Commands.ExtractSelected.Enabled = Commands.RecognizeSelected.Enabled =
+                            Commands.Delete.Enabled = ImageList.Selection.Any();
         Commands.SavePdf.Enabled = Commands.SaveImages.Enabled = Commands.ClearAll.Enabled =
             Commands.ReorderMenu.Enabled =
                 Commands.EmailPdf.Enabled = Commands.Print.Enabled = ImageList.Images.Any();

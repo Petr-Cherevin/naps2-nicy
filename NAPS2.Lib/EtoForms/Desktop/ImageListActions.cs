@@ -104,6 +104,27 @@ public class ImageListActions
 
     public Task SaveAllAsPdf() => _exportController.SavePdf(_imageList.Images, _notify);
     public Task SaveSelectedAsPdf() => _exportController.SavePdf(_imageList.Selection, _notify);
+    /// <summary>
+    /// Saves the selected images to a PDF file, then (only if that succeeds) removes them from the image list.
+    /// </summary>
+    public async Task ExtractSelectedAsPdf()
+    {
+        var images = _imageList.Selection.ToList();
+        if (images.Count == 0)
+        {
+            return;
+        }
+        if (await _exportController.SavePdf(images, _notify))
+        {
+            // The images may already be gone if "delete after saving" is turned on
+            var remaining = images.Where(_imageList.Images.Contains).ToList();
+            if (remaining.Count > 0)
+            {
+                _imageList.Mutate(new ImageListMutation.DeleteSelected(), ListSelection.From(remaining));
+            }
+        }
+    }
+
     public Task SaveAllAsImages() => _exportController.SaveImages(_imageList.Images, _notify);
     public Task SaveSelectedAsImages() => _exportController.SaveImages(_imageList.Selection, _notify);
     public Task SaveAllAsPdfOrImages() => _exportController.SavePdfOrImages(_imageList.Images, _notify);

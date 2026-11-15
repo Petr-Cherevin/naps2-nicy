@@ -65,7 +65,8 @@ public class DesktopKeyboardShortcuts
         _ksm.Assign(ks.MoveDown, commands.MoveDown);
         _ksm.Assign(ks.MoveUp, commands.MoveUp);
         _ksm.Assign(ks.NewProfile, commands.NewProfile);
-        _ksm.Assign(ks.Ocr, commands.Ocr);
+        // The OCR settings are only reachable from the Mac menu (Ocr) or the Recognize toolbar menu (OcrSettings)
+        _ksm.Assign(ks.Ocr, EtoPlatform.Current.IsMac ? commands.Ocr : commands.OcrSettings);
         if (PlatformCompat.System.CanPrint)
         {
             _ksm.Assign(ks.Print, commands.Print);

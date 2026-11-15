@@ -418,14 +418,21 @@ public class DesktopController
     /// Runs OCR on all images with the saved OCR settings, without saving a PDF. The results are cached and used the
     /// next time a PDF is saved.
     /// </summary>
-    public void Recognize()
+    public void Recognize() => Recognize(_imageList.Images);
+
+    /// <summary>
+    /// Like Recognize, but only for the selected images.
+    /// </summary>
+    public void RecognizeSelected() => Recognize(_imageList.Selection.ToList());
+
+    private void Recognize(ICollection<UiImage> images)
     {
-        if (!_imageList.Images.Any())
+        if (!images.Any())
         {
             return;
         }
         var op = _operationFactory.Create<RecognizeOperation>();
-        if (op.Start(_imageList.Images, _config.DefaultOcrParams(), OcrPriority.Foreground))
+        if (op.Start(images, _config.DefaultOcrParams(), OcrPriority.Foreground))
         {
             _operationProgress.ShowProgress(op);
         }

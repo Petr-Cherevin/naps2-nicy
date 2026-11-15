@@ -64,7 +64,7 @@ public class ScrollZoomImageViewer
 
     /// <summary>
     /// Gets the selection rectangles that have been drawn, in image pixel coordinates. These are rendered over the
-    /// image as solid rectangles (with an outline so they're visible even if they match the image background).
+    /// image as solid rectangles.
     /// </summary>
     public IReadOnlyList<SelectionRect> SelectionRects => _selectionRects;
 
@@ -242,8 +242,6 @@ public class ScrollZoomImageViewer
         float x = XOffset + rect.X * xScale, y = YOffset + rect.Y * yScale;
         float w = rect.Width * xScale, h = rect.Height * yScale;
         graphics.FillRectangle(color, x, y, w, h);
-        // The outline is only part of the preview, to show where the rectangles are (e.g. white on a white page)
-        graphics.DrawRectangle(Colors.Gray, x, y, w, h);
     }
 
     public float ZoomFactor => _renderFactor;

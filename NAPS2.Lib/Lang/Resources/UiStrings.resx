@@ -1203,4 +1203,16 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="RedactColor" xml:space="preserve">
     <value>Redaction Color</value>
   </data>
+  <data name="RecognizeSelected" xml:space="preserve">
+    <value>Recognize Selected</value>
+  </data>
+  <data name="ExtractSelected" xml:space="preserve">
+    <value>Extract Selected</value>
+  </data>
+  <data name="MoveUpShort" xml:space="preserve">
+    <value>Up</value>
+  </data>
+  <data name="MoveDownShort" xml:space="preserve">
+    <value>Down</value>
+  </data>
 </root>

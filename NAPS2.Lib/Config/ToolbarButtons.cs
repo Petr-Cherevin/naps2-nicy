@@ -27,5 +27,6 @@ public enum ToolbarButtons
     ManualDuplex =  1 << 20,
     Interleave =  1 << 21,
     RotateButtons = 1 << 22,
-    Recognize = 1 << 23
+    Recognize = 1 << 23,
+    Extract = 1 << 24
 }

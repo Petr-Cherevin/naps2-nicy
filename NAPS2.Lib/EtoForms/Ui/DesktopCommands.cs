@@ -78,6 +78,25 @@ public class DesktopCommands
             Text = UiStrings.Recognize,
             IconName = "text"
         };
+        RecognizeSelected = new ActionCommand(() =>
+        {
+            if (!desktopController.IsOcrEnabled)
+            {
+                desktopSubFormController.ShowOcrForm();
+            }
+            if (desktopController.IsOcrEnabled)
+            {
+                desktopController.RecognizeSelected();
+            }
+        })
+        {
+            Text = UiStrings.RecognizeSelected
+        };
+        ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
+        {
+            Text = UiStrings.ExtractSelected,
+            IconName = "arrow_out"
+        };
         OcrSettings = new ActionCommand(desktopSubFormController.ShowOcrForm)
         {
             Text = UiStrings.OcrSettings
@@ -270,11 +289,13 @@ public class DesktopCommands
         MoveUp = new ActionCommand(imageListActions.MoveUp)
         {
             Text = UiStrings.MoveUp,
+            ToolBarText = UiStrings.MoveUpShort,
             IconName = "arrow_up"
         };
         MoveDown = new ActionCommand(imageListActions.MoveDown)
         {
             Text = UiStrings.MoveDown,
+            ToolBarText = UiStrings.MoveDownShort,
             IconName = "arrow_down"
         };
         MoveToPosition = new ActionCommand(desktopSubFormController.ShowMoveToPositionForm)
@@ -439,6 +460,8 @@ public class DesktopCommands
     public ActionCommand Ocr { get; set; }
     public ActionCommand Recognize { get; set; }
     public ActionCommand OcrSettings { get; set; }
+    public ActionCommand RecognizeSelected { get; set; }
+    public ActionCommand ExtractSelected { get; set; }
     public ActionCommand Import { get; set; }
     public ActionCommand SaveAll { get; set; }
     public ActionCommand SaveSelected { get; set; }
