@@ -301,6 +301,21 @@ public class WinFormsEtoPlatform : EtoPlatform
     {
         var form = window.ToNative();
 
+        // WinForms can omit a taskbar button when its first caption is assigned
+        // during startup after the window has started showing without foreground.
+        // Seed a non-empty caption before the native HWND is created (dotnet/winforms#9770).
+        // DesktopForm will apply the localized/profile-specific title in its constructor.
+        if (window is NAPS2.EtoForms.Ui.DesktopForm)
+        {
+            bool alreadyHadCaption = !string.IsNullOrEmpty(form.Text);
+            bool handleAlreadyCreated = form.IsHandleCreated;
+            if (!alreadyHadCaption)
+                form.Text = "NAPS2";
+            DiagnosticLog.Write("TaskbarInit",
+                $"captionSeeded={!alreadyHadCaption} handleAlreadyCreated={handleAlreadyCreated} " +
+                $"captionLength={form.Text.Length} showInTaskbar={form.ShowInTaskbar}");
+        }
+
         bool isRtl = CultureInfo.CurrentCulture.TextInfo.IsRightToLeft;
         form.RightToLeft = isRtl ? WF.RightToLeft.Yes : WF.RightToLeft.No;
         form.RightToLeftLayout = isRtl;

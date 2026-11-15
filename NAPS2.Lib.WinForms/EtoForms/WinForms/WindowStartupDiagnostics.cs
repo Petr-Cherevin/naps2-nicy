@@ -14,6 +14,8 @@ internal static class WindowStartupDiagnostics
     [DllImport("user32.dll")]
     private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);
+    [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(nint hwnd);
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint hwnd);
@@ -27,6 +29,14 @@ internal static class WindowStartupDiagnostics
     private static extern nint FindWindow(string? className, string? windowName);
     [DllImport("dwmapi.dll")]
     private static extern int DwmGetWindowAttribute(nint hwnd, int attribute, out int value, int size);
+
+    public static bool IsOurProcessForeground()
+    {
+        var foreground = GetForegroundWindow();
+        if (foreground == nint.Zero) return false;
+        GetWindowThreadProcessId(foreground, out uint pid);
+        return pid == (uint) Environment.ProcessId;
+    }
 
     public static void Attach(Form form)
     {
@@ -63,7 +73,7 @@ internal static class WindowStartupDiagnostics
             }
         }
 
-        DiagnosticLog.Write("Startup", "begin version=0006 activation=disabled forensic=enabled");
+        DiagnosticLog.Write("Startup", "begin version=0007 activation=disabled forensic=enabled");
         Record("attach");
         form.HandleCreated += (_, _) => Record("HandleCreated");
         form.HandleDestroyed += (_, _) => Record("HandleDestroyed");

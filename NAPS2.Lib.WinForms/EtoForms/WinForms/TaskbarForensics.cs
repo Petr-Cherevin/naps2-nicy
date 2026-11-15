@@ -60,6 +60,7 @@ internal static class TaskbarForensics
             if (form.IsHandleCreated)
             {
                 tap.ReleaseHandle();
+                tap.ResetForHandle();
                 tap.AssignHandle(form.Handle);
                 // Diagnostic subscription only: never adds a taskbar button or
                 // activates a window. Shell notifications expose CREATE/ACTIVATE
@@ -136,6 +137,11 @@ internal static class TaskbarForensics
         {
             if (form.IsDisposed || !form.IsHandleCreated) return;
             tick++;
+            if (tick == 10)
+                DiagnosticLog.Write("TaskbarButton",
+                    $"stage=post-startup hwnd={Hex(form.Handle)} " +
+                    $"createdMessageObserved={tap.TaskbarButtonObserved} " +
+                    $"foreground={Hex(GetForegroundWindow())} showInTaskbar={form.ShowInTaskbar}");
             // First 5 seconds at 250 ms, then 1-second samples up to 35 seconds.
             if (tick > 20) sampling.Interval = 1000;
             Snapshot(form, $"sample-{tick}");
@@ -209,6 +215,7 @@ internal static class TaskbarForensics
                 $"style=0x{GetWindowLong(hwnd, -16):X} exStyle=0x{GetWindowLong(hwnd, -20):X} " +
                 $"visible={IsWindowVisible(hwnd)} showInTaskbar={form.ShowInTaskbar} " +
                 $"cloaked={cloak} dwmHr={dwmStatus} state={form.WindowState} " +
+                $"captionLength={form.Text.Length} " +
                 $"topLevelWindows={topLevel} visibleTopLevel={visible} explicitAppId={appIdPresent}");
         }
         catch (Exception ex)
@@ -220,9 +227,21 @@ internal static class TaskbarForensics
     private sealed class MessageTap : NativeWindow
     {
         internal static readonly uint ShellMessageId = RegisterWindowMessage("SHELLHOOK");
+        internal static readonly uint TaskbarButtonCreatedMessageId =
+            RegisterWindowMessage("TaskbarButtonCreated");
+
+        internal bool TaskbarButtonObserved { get; private set; }
+
+        internal void ResetForHandle() => TaskbarButtonObserved = false;
 
         protected override void WndProc(ref Message m)
         {
+            if (TaskbarButtonCreatedMessageId != 0 && (uint) m.Msg == TaskbarButtonCreatedMessageId)
+            {
+                TaskbarButtonObserved = true;
+                DiagnosticLog.Write("TaskbarMsg",
+                    $"event=TaskbarButtonCreated hwnd={Hex(m.HWnd)}");
+            }
             if (ShellMessageId != 0 && (uint) m.Msg == ShellMessageId)
             {
                 var eventWindow = m.LParam;
@@ -237,6 +256,7 @@ internal static class TaskbarForensics
             // A small list of messages important to shell enumeration/activation.
             string? name = m.Msg switch
             {
+                0x0C => "WM_SETTEXT",
                 0x18 => "WM_SHOWWINDOW",
                 0x46 => "WM_WINDOWPOSCHANGING",
                 0x47 => "WM_WINDOWPOSCHANGED",
