@@ -1,5 +1,6 @@
 using Eto.Drawing;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using Eto.Forms;
@@ -168,7 +169,14 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                 {
                     if (item.IsDisposed) continue;
                     // The page might have been modified while waiting; stale results are ignored below.
+                    var timer = Stopwatch.StartNew();
                     var result = _pageTextStatusProvider.GetStatus(item);
+                    timer.Stop();
+                    if (timer.ElapsedMilliseconds >= 150)
+                    {
+                        DiagnosticLog.Write("BadgeStatus",
+                            $"slowCheckMs={timer.ElapsedMilliseconds} pending={_pending.Count}");
+                    }
                     lock (entry)
                     {
                         if (Equals(entry.State, state) && entry.Language == language)

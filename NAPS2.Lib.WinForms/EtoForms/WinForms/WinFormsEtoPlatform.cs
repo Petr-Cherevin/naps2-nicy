@@ -449,7 +449,7 @@ public class WinFormsEtoPlatform : EtoPlatform
         if (obj?.ControlObject is WF.DataObject wfObj)
         {
 #pragma warning disable WFDEV005
-            return (byte[]) wfObj.GetData(typeName);
+            if (wfObj.GetData(typeName) is byte[] bytes) return bytes;
 #pragma warning restore WFDEV005
         }
         return base.GetData(dataObject, typeName);

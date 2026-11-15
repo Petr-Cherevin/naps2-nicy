@@ -468,6 +468,7 @@ public class PreviewForm : EtoDialogBase
 
     private async void RefreshPreviewTextStatus()
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var page = _currentImage;
         if (page == null) return;
         PageTextStatus status;
@@ -481,6 +482,8 @@ public class PreviewForm : EtoDialogBase
             return;
         }
         if (page != _currentImage) return;
+        DiagnosticLog.Write("PreviewStatus",
+            $"page={ImageIndex + 1} status={status} elapsedMs={System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0}");
         _ocrStatusButton.Visible = status != PageTextStatus.None;
         if (status == PageTextStatus.None) return;
         _ocrStatusButton.ToolTip = status switch

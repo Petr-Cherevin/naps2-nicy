@@ -607,7 +607,7 @@ public abstract class DesktopForm : EtoFormBase
         Task.Delay(300).ContinueWith(_ => Invoker.Current.InvokeDispatch(() =>
         {
             Interlocked.Exchange(ref _badgeRefreshQueued, 0);
-            _listView.RegenerateImages();
+            EtoPlatform.Current.RefreshPageTextBadges(_listView);
         }));
     }
 

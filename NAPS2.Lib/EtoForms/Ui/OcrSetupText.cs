@@ -9,6 +9,9 @@ internal static class OcrSetupText
 {
     private static bool Ru => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru";
 
+    public static string ModePrompt => Ru ? "Выберите режим распознавания:" : "Choose a recognition mode:";
+    public static string ModeHint => Ru ? "Выделенный режим будет применён после нажатия «ОК»." : "The selected mode is applied when you click OK.";
+    public static string ModeSelected => Ru ? "Выбран" : "Selected";
     public static string SingleTab => Ru ? "Один язык" : "One language";
     public static string FavoriteTab => Ru ? "Мой набор" : "My set";
     public static string CustomTab => Ru ? "Свой выбор" : "Custom choice";

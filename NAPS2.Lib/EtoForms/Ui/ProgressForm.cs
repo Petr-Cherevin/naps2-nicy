@@ -87,7 +87,8 @@ public class ProgressForm : EtoDialogBase
 
     private void DisplayProgress()
     {
-        DiagnosticLog.Write("ProgressForm", $"Render current={Operation.Status?.CurrentProgress} max={Operation.Status?.MaxProgress}");
+        DiagnosticLog.Write("ProgressForm",
+            $"operation={Operation.GetType().Name} render current={Operation.Status?.CurrentProgress} max={Operation.Status?.MaxProgress}");
         EtoOperationProgress.RenderStatus(Operation, _status, _numeric, _progressBar);
     }
 

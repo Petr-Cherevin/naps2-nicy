@@ -12,12 +12,17 @@ namespace NAPS2.EtoForms.WinForms;
 
 public class WinFormsListView<T> : IListView<T> where T : notnull
 {
-    private Pen DefaultPen => new(_behavior.ColorScheme.ForegroundColor.ToSD(), 1);
+    private Pen? _defaultPen;
+    private SolidBrush? _pageNumberOutlineBrush;
+    private SolidBrush? _pageNumberSelectionBrush;
+    private Pen DefaultPen => _defaultPen ??= new Pen(_behavior.ColorScheme.ForegroundColor.ToSD(), 1);
     private static readonly Pen BasicSelectionPen = new(Color.FromArgb(0x60, 0xa0, 0xe8), 3);
     private const int PageNumberTextPadding = 6;
     private const int PageNumberSelectionPadding = 3;
-    private SolidBrush PageNumberOutlineBrush => new(_behavior.ColorScheme.HighlightBorderColor.ToSD());
-    private SolidBrush PageNumberSelectionBrush => new(_behavior.ColorScheme.HighlightBackgroundColor.ToSD());
+    private SolidBrush PageNumberOutlineBrush => _pageNumberOutlineBrush ??=
+        new SolidBrush(_behavior.ColorScheme.HighlightBorderColor.ToSD());
+    private SolidBrush PageNumberSelectionBrush => _pageNumberSelectionBrush ??=
+        new SolidBrush(_behavior.ColorScheme.HighlightBackgroundColor.ToSD());
     private static readonly StringFormat PageNumberLabelFormat = new()
         { Alignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
 
@@ -36,6 +41,25 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
         _behavior = behavior;
         _view = behavior.ScrollOnDrag ? new DragScrollListView() : new ListView();
         _view.MultiSelect = behavior.MultiSelect;
+
+        // Drawing resources are reused across frames and disposed when the theme changes.
+        void ResetDrawingResources()
+        {
+            _defaultPen?.Dispose();
+            _pageNumberOutlineBrush?.Dispose();
+            _pageNumberSelectionBrush?.Dispose();
+            _defaultPen = null;
+            _pageNumberOutlineBrush = null;
+            _pageNumberSelectionBrush = null;
+            if (!_view.IsDisposed) _view.Invalidate();
+        }
+        EventHandler colorsChanged = (_, _) => ResetDrawingResources();
+        _behavior.ColorScheme.ColorSchemeChanged += colorsChanged;
+        _view.Disposed += (_, _) =>
+        {
+            _behavior.ColorScheme.ColorSchemeChanged -= colorsChanged;
+            ResetDrawingResources();
+        };
 
         if (_behavior.Checkboxes)
         {

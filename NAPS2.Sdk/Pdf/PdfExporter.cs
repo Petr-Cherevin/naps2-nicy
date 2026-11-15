@@ -211,6 +211,8 @@ public class PdfExporter
                         using var page = destDoc.GetPage(state.PageIndex);
                         DrawOcrTextOnPdfiumPage(state.Page, destDoc, page, glyphlessFont!, state.OcrTask.Result);
                     }
+                    // Passthrough pages skip WriteToPdfSharpStep, so report their completion here.
+                    state.IncrementProgress();
                     if (progress.IsCancellationRequested) return false;
                 }
                 output.SavePdfDoc(destDoc);

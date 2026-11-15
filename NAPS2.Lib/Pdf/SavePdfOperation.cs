@@ -1,4 +1,6 @@
-﻿using NAPS2.ImportExport;
+﻿using System.Diagnostics;
+using NAPS2.EtoForms;
+using NAPS2.ImportExport;
 using NAPS2.ImportExport.Email;
 using NAPS2.Ocr;
 
@@ -63,6 +65,9 @@ internal class SavePdfOperation : OperationBase
             StatusText = string.Format(MiscResources.SavingFormat, Path.GetFileName(fileNames[0])),
             MaxProgress = images.Count
         };
+        var saveTimer = Stopwatch.StartNew();
+        DiagnosticLog.Write("SavePdf",
+            $"begin pages={images.Count} outputFiles={imagesByFile.Length} scope={ocrScope}");
 
         var singleFile = imagesByFile.Length == 1;
         if (singleFile && saveParams.OverwriteMode.ShouldPromptForPath(fileNames[0]) &&
@@ -76,6 +81,7 @@ internal class SavePdfOperation : OperationBase
         RunAsync(async () =>
         {
             bool result = false;
+            long lastLoggedAt = -1000;
             try
             {
                 int i = 0;
@@ -90,7 +96,17 @@ internal class SavePdfOperation : OperationBase
                     Status.StatusText = string.Format(MiscResources.SavingFormat, Path.GetFileName(currentFileName));
                     InvokeStatusChanged();
 
-                    var progress = new ProgressHandler(singleFile ? OnProgress : null, CancelToken);
+                    var progress = new ProgressHandler(singleFile ? (current, max) =>
+                    {
+                        OnProgress(current, max);
+                        long at = saveTimer.ElapsedMilliseconds;
+                        if (current == max || current == 0 || at - lastLoggedAt >= 1000)
+                        {
+                            lastLoggedAt = at;
+                            DiagnosticLog.Write("SavePdf",
+                                $"progress={current}/{max} elapsedMs={at}");
+                        }
+                    } : null, CancelToken);
                     result = await RunWithRetry(async () =>
                             await WaitForFileNotInUse(currentFileName) &&
                             await _pdfExporter.Export(currentFileName, imagesForFile,
@@ -101,6 +117,9 @@ internal class SavePdfOperation : OperationBase
                                 },
                                 ocrParams, progress),
                         GetSaveErrorMessage);
+                    DiagnosticLog.Write("SavePdf",
+                        $"fileDone index={i + 1}/{imagesByFile.Length} pages={imagesForFile.Length} " +
+                        $"success={result} elapsedMs={saveTimer.ElapsedMilliseconds}");
                     if (!result)
                     {
                         break;
@@ -133,6 +152,9 @@ internal class SavePdfOperation : OperationBase
             finally
             {
                 reservations.Dispose();
+                DiagnosticLog.Write("SavePdf",
+                    $"exportEnded success={result} elapsedMs={saveTimer.ElapsedMilliseconds} " +
+                    $"cancelled={CancelToken.IsCancellationRequested}");
                 GC.Collect();
             }
 

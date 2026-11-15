@@ -78,6 +78,30 @@ public class PageTextStatusProvider
     /// </summary>
     public event EventHandler? StatusChanged;
 
+    /// <summary>Reuse a known PDF status unless this page gained or lost an OCR result.</summary>
+    public PageTextStatus GetStatusAfterOcrChange(UiImage uiImage, PageTextStatus previous)
+    {
+        try
+        {
+            using var image = uiImage.GetClonedImage();
+            if (_pageTextProvider.GetCachedOcrText(image) != null)
+            {
+                lock (_hadOcrResult)
+                {
+                    if (!_hadOcrResult.TryGetValue(uiImage, out _))
+                        _hadOcrResult.Add(uiImage, new object());
+                }
+                return PageTextStatus.Recognized;
+            }
+            if (previous != PageTextStatus.Recognized) return previous;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException("Error checking OCR status", ex);
+        }
+        return GetStatus(uiImage);
+    }
+
     public PageTextStatus GetStatus(UiImage uiImage)
     {
         try
