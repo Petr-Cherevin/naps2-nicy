@@ -1,4 +1,6 @@
 using System.Threading;
+using System.Collections.Concurrent;
+using NAPS2.Util;
 using NAPS2.ImportExport;
 using NAPS2.Ocr;
 using NAPS2.Pdf;
@@ -21,6 +23,30 @@ public class PdfImportExportTests : ContextualTests
         _exporter = new PdfExporter(ScanningContext);
         _importPath = CopyResourceToFile(PdfResources.word_generated_pdf, "import.pdf");
         _exportPath = P("export.pdf");
+    }
+
+    [Fact]
+    public async Task PdfPassthroughPagesReportIntermediateProgress()
+    {
+        // Regression: imported PDF pages copied via Pdfium used to remain at 0 / N
+        // in the save dialog until the entire file had been written.
+        var images = await _importer.Import(_importPath).ToListAsync();
+        Assert.Equal(2, images.Count);
+        var values = new ConcurrentQueue<int>();
+        var phases = new List<string>();
+        var progress = new ProgressHandler((current, max) =>
+        {
+            Assert.Equal(images.Count, max);
+            values.Enqueue(current);
+        }, CancellationToken.None);
+
+        Assert.True(await _exporter.Export(_exportPath, images,
+            ocrParams: OcrParams.Empty, progress: progress, diagnostics: phases.Add));
+
+        Assert.Contains(phases, phase => phase.Contains("passthroughPages=2"));
+        Assert.Contains(1, values);
+        Assert.Equal(2, values.Last());
+        PdfAsserts.AssertPageCount(2, _exportPath);
     }
 
     [Theory]

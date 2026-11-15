@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
@@ -27,7 +27,7 @@ jobs:
         if ($null -eq $zip) { throw 'No portable zip found' }
         Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0005-win-x64.zip'
     - name: Upload portable zip
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: NAPS2-ChatGPT-0005-win-x64
         path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0005-win-x64.zip
