@@ -27,6 +27,10 @@ internal static class TaskbarForensics
         uint eventMin, uint eventMax, nint module, WinEventCallback callback,
         uint process, uint thread, uint flags);
     [DllImport("user32.dll")] private static extern bool UnhookWinEvent(nint hook);
+    [DllImport("user32.dll")] private static extern bool RegisterShellHookWindow(nint hwnd);
+    [DllImport("user32.dll")] private static extern bool DeregisterShellHookWindow(nint hwnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint RegisterWindowMessage(string message);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern nint GetWindow(nint hwnd, uint code);
     [DllImport("user32.dll")] private static extern nint GetParent(nint hwnd);
@@ -57,11 +61,28 @@ internal static class TaskbarForensics
             {
                 tap.ReleaseHandle();
                 tap.AssignHandle(form.Handle);
+                // Diagnostic subscription only: never adds a taskbar button or
+                // activates a window. Shell notifications expose CREATE/ACTIVATE
+                // for unowned top-level windows before the user first clicks NAPS2.
+                bool registered;
+                try { registered = RegisterShellHookWindow(form.Handle); }
+                catch (EntryPointNotFoundException) { registered = false; }
+                DiagnosticLog.Write("ShellHook",
+                    $"registered={registered} hwnd={Hex(form.Handle)} " +
+                    $"messageId=0x{MessageTap.ShellMessageId:X}");
                 DiagnosticLog.Write("TaskbarMsg", $"tapAttached hwnd={Hex(form.Handle)}");
             }
         }
         form.HandleCreated += (_, _) => ConnectHandle();
-        form.HandleDestroyed += (_, _) => tap.ReleaseHandle();
+        form.HandleDestroyed += (_, _) =>
+        {
+            if (tap.Handle != 0)
+            {
+                try { DeregisterShellHookWindow(tap.Handle); }
+                catch (EntryPointNotFoundException) { }
+                tap.ReleaseHandle();
+            }
+        };
         if (form.IsHandleCreated) ConnectHandle();
 
         var hooks = new List<nint>();
@@ -198,8 +219,21 @@ internal static class TaskbarForensics
 
     private sealed class MessageTap : NativeWindow
     {
+        internal static readonly uint ShellMessageId = RegisterWindowMessage("SHELLHOOK");
+
         protected override void WndProc(ref Message m)
         {
+            if (ShellMessageId != 0 && (uint) m.Msg == ShellMessageId)
+            {
+                var eventWindow = m.LParam;
+                GetWindowThreadProcessId(eventWindow, out uint pid);
+                // Shell-specific evidence is complementary to accessibility WinEvents.
+                // It cannot independently verify that an actual taskbar button exists.
+                if (pid == Environment.ProcessId || m.WParam.ToInt64() is 1 or 2 or 4 or 6 or 0x8004)
+                    DiagnosticLog.Write("ShellHook",
+                        $"code={m.WParam.ToInt64()} hwnd={Hex(eventWindow)} " +
+                        $"pid={pid} ownWindow={eventWindow == m.HWnd}");
+            }
             // A small list of messages important to shell enumeration/activation.
             string? name = m.Msg switch
             {
