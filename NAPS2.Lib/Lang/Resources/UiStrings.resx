@@ -1167,12 +1167,6 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="Recognize" xml:space="preserve">
     <value>Recognize</value>
   </data>
-  <data name="OcrSettings" xml:space="preserve">
-    <value>OCR Settings</value>
-  </data>
-  <data name="RecognizeAutomatically" xml:space="preserve">
-    <value>Recognize Automatically</value>
-  </data>
   <data name="RotateLeftShort" xml:space="preserve">
     <value>Left</value>
   </data>
@@ -1194,17 +1188,8 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   <data name="Apply" xml:space="preserve">
     <value>Apply</value>
   </data>
-  <data name="RecognizeScansOnly" xml:space="preserve">
-    <value>Scanned Pages Only</value>
-  </data>
-  <data name="RecognizeScansAndImports" xml:space="preserve">
-    <value>Scanned and Imported Pages</value>
-  </data>
   <data name="RedactColor" xml:space="preserve">
     <value>Redaction Color</value>
-  </data>
-  <data name="RecognizeSelected" xml:space="preserve">
-    <value>Recognize Selected</value>
   </data>
   <data name="ExtractSelected" xml:space="preserve">
     <value>Extract Selected</value>
@@ -1253,5 +1238,20 @@ If your scanner doesn't support "Duplex" scanning, follow these instructions:
   </data>
   <data name="NoTextFound" xml:space="preserve">
     <value>No text was found on this page.</value>
+  </data>
+  <data name="RecognizeAll" xml:space="preserve">
+    <value>Recognize All</value>
+  </data>
+  <data name="AutoOcrWithoutText" xml:space="preserve">
+    <value>Auto: Pages Without Text</value>
+  </data>
+  <data name="AutoOcrAllScans" xml:space="preserve">
+    <value>Auto: All Scans</value>
+  </data>
+  <data name="RecognizeAllPrompt" xml:space="preserve">
+    <value>Recognize all pages?</value>
+  </data>
+  <data name="RecognizeExistingTextPrompt" xml:space="preserve">
+    <value>Some of these pages already have text that was recognized in another application. Recognize them again?</value>
   </data>
 </root>

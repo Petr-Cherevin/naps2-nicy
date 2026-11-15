@@ -412,27 +412,65 @@ public class DesktopController
     /// <summary>
     /// Whether OCR has been set up (enabled with a language selected).
     /// </summary>
-    public bool IsOcrEnabled => !string.IsNullOrEmpty(_config.DefaultOcrParams().LanguageCode);
+    public bool IsOcrEnabled => !string.IsNullOrEmpty(_config.ManualOcrParams().LanguageCode);
 
     /// <summary>
     /// Runs OCR on all images with the saved OCR settings, without saving a PDF. The results are cached and used the
     /// next time a PDF is saved.
     /// </summary>
-    public void Recognize() => Recognize(_imageList.Images);
+    public void RecognizeAll() => Recognize(_imageList.Images);
 
     /// <summary>
-    /// Like Recognize, but only for the selected images.
+    /// Like RecognizeAll, but only for the selected images. If nothing is selected, the user is asked whether to
+    /// run OCR on everything instead.
     /// </summary>
-    public void RecognizeSelected() => Recognize(_imageList.Selection.ToList());
+    public void RecognizeSelected()
+    {
+        var selection = _imageList.Selection.ToList();
+        if (selection.Count > 0)
+        {
+            Recognize(selection);
+        }
+        else if (_imageList.Images.Any() && Confirm(UiStrings.RecognizeAllPrompt))
+        {
+            Recognize(_imageList.Images);
+        }
+    }
+
+    private bool Confirm(string message) =>
+        MessageBox.Show(_desktopFormProvider.DesktopForm, message, UiStrings.Recognize, MessageBoxButtons.YesNo,
+            MessageBoxType.Question) == DialogResult.Yes;
 
     private void Recognize(ICollection<UiImage> images)
     {
-        if (!images.Any())
+        // Pages with real text are never run through OCR. Scans that have already been through OCR elsewhere (so they
+        // have hidden text) are only run through OCR again if the user confirms.
+        var imagesToRecognize = new List<UiImage>();
+        var imagesWithHiddenText = new List<UiImage>();
+        foreach (var uiImage in images)
+        {
+            using var image = uiImage.GetClonedImage();
+            switch (ExistingText.GetKind(image))
+            {
+                case ExistingTextKind.None:
+                    imagesToRecognize.Add(uiImage);
+                    break;
+                case ExistingTextKind.HiddenOverScan:
+                    imagesWithHiddenText.Add(uiImage);
+                    break;
+            }
+        }
+        if (imagesWithHiddenText.Count > 0 && Confirm(UiStrings.RecognizeExistingTextPrompt))
+        {
+            imagesToRecognize = images.Where(x => imagesToRecognize.Contains(x) || imagesWithHiddenText.Contains(x))
+                .ToList();
+        }
+        if (imagesToRecognize.Count == 0)
         {
             return;
         }
         var op = _operationFactory.Create<RecognizeOperation>();
-        if (op.Start(images, _config.DefaultOcrParams(), OcrPriority.Foreground))
+        if (op.Start(imagesToRecognize, _config.ManualOcrParams(), OcrPriority.Foreground))
         {
             _operationProgress.ShowProgress(op);
         }
@@ -446,11 +484,13 @@ public class DesktopController
     /// <param name="sourceOp">The operation that produces the images, or null if there's only a single image.</param>
     private Action<ProcessedImage> WithAutoRecognize(Action<ProcessedImage> imageCallback, IOperation? sourceOp = null)
     {
-        var ocrParams = _config.OcrAfterImportingParams();
+        // This only applies if automatic OCR is turned on
+        var ocrParams = _config.DefaultOcrParams();
         if (string.IsNullOrEmpty(ocrParams.LanguageCode))
         {
             return imageCallback;
         }
+        bool allScans = _config.Get(c => c.OcrAllScans);
         var lockObj = new object();
         RecognizeOperation? recognizeOp = null;
         bool sourceFinished = sourceOp == null;
@@ -467,6 +507,14 @@ public class DesktopController
         }
         return image =>
         {
+            // Pages that already have text aren't run through OCR (except for previously OCR'd scans if the user has
+            // chosen to include them)
+            var kind = ExistingText.GetKind(image);
+            if (kind == ExistingTextKind.Visible || kind == ExistingTextKind.HiddenOverScan && !allScans)
+            {
+                imageCallback(image);
+                return;
+            }
             // The callback takes ownership of the image, so we need our own clone for OCR
             var clone = image.Clone();
             imageCallback(image);

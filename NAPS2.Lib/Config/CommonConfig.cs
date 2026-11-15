@@ -159,21 +159,15 @@ public class CommonConfig
     [Common]
     public bool OcrPreProcessing { get; set; }
 
-    // No longer used; superseded by OcrAutoRecognize. Kept so existing config files still load.
     [Common]
     public bool OcrAfterScanning { get; set; }
 
     /// <summary>
-    /// Whether OCR is automatically run (in the background) for newly scanned pages.
+    /// If EnableOcr is on, whether OCR is also re-run for scanned pages that already have hidden text from a previous
+    /// OCR (e.g. from an imported PDF), rather than only for pages without text.
     /// </summary>
     [Common]
-    public bool OcrAutoRecognize { get; set; }
-
-    /// <summary>
-    /// If OcrAutoRecognize is on, whether OCR is also automatically run for imported (and pasted) pages.
-    /// </summary>
-    [Common]
-    public bool OcrAutoRecognizeImports { get; set; }
+    public bool OcrAllScans { get; set; }
 
     [User]
     public string? LastImageExt { get; set; }

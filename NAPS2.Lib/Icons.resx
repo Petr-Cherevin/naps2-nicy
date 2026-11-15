@@ -709,4 +709,34 @@
   <data name="redact_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Icons\redact_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="text_auto_64" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_64.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="text_auto_32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_32.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="text_auto_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="text_auto_all_64" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_all_64.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="text_auto_all_32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_all_32.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="text_auto_all_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\text_auto_all_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="textbadge_ours" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\textbadge_ours.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="textbadge_other" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\textbadge_other.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="textbadge_real" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\textbadge_real.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="textbadge_lost" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\textbadge_lost.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
 </root>

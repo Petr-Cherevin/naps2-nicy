@@ -2103,18 +2103,6 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
-        internal static string OcrSettings {
-            get {
-                return ResourceManager.GetString("OcrSettings", resourceCulture);
-            }
-        }
-        
-        internal static string RecognizeAutomatically {
-            get {
-                return ResourceManager.GetString("RecognizeAutomatically", resourceCulture);
-            }
-        }
-        
         internal static string RotateLeftShort {
             get {
                 return ResourceManager.GetString("RotateLeftShort", resourceCulture);
@@ -2154,6 +2142,36 @@ namespace NAPS2.Lang.Resources {
         internal static string Apply {
             get {
                 return ResourceManager.GetString("Apply", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeAll {
+            get {
+                return ResourceManager.GetString("RecognizeAll", resourceCulture);
+            }
+        }
+        
+        internal static string AutoOcrWithoutText {
+            get {
+                return ResourceManager.GetString("AutoOcrWithoutText", resourceCulture);
+            }
+        }
+        
+        internal static string AutoOcrAllScans {
+            get {
+                return ResourceManager.GetString("AutoOcrAllScans", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeAllPrompt {
+            get {
+                return ResourceManager.GetString("RecognizeAllPrompt", resourceCulture);
+            }
+        }
+        
+        internal static string RecognizeExistingTextPrompt {
+            get {
+                return ResourceManager.GetString("RecognizeExistingTextPrompt", resourceCulture);
             }
         }
         
@@ -2235,12 +2253,6 @@ namespace NAPS2.Lang.Resources {
             }
         }
         
-        internal static string RecognizeSelected {
-            get {
-                return ResourceManager.GetString("RecognizeSelected", resourceCulture);
-            }
-        }
-        
         internal static string ExtractSelected {
             get {
                 return ResourceManager.GetString("ExtractSelected", resourceCulture);
@@ -2262,18 +2274,6 @@ namespace NAPS2.Lang.Resources {
         internal static string RedactColor {
             get {
                 return ResourceManager.GetString("RedactColor", resourceCulture);
-            }
-        }
-        
-        internal static string RecognizeScansOnly {
-            get {
-                return ResourceManager.GetString("RecognizeScansOnly", resourceCulture);
-            }
-        }
-        
-        internal static string RecognizeScansAndImports {
-            get {
-                return ResourceManager.GetString("RecognizeScansAndImports", resourceCulture);
             }
         }
     }

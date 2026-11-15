@@ -375,7 +375,7 @@ public abstract class DesktopForm : EtoFormBase
             CreateToolbarButton(Commands.Profiles);
         if (ShowButton(ToolbarButtons.Recognize))
             CreateToolbarButtonWithMenu(Commands.Recognize, DesktopToolbarMenuType.Recognize, new MenuProvider()
-                .Append(Commands.RecognizeSelected)
+                .Append(Commands.RecognizeAll)
                 .Separator()
                 .Append(Commands.OcrSettings)
                 .Separator()
@@ -613,8 +613,7 @@ public abstract class DesktopForm : EtoFormBase
             Commands.RotateMenu.Enabled = Commands.MoveUp.Enabled = Commands.MoveDown.Enabled =
                 Commands.RotateLeftCompact.Enabled = Commands.RotateRightCompact.Enabled =
                     Commands.Rotate180Compact.Enabled = Commands.DeskewCompact.Enabled =
-                        Commands.ExtractSelected.Enabled = Commands.RecognizeSelected.Enabled =
-                            Commands.Delete.Enabled = ImageList.Selection.Any();
+                        Commands.ExtractSelected.Enabled = Commands.Delete.Enabled = ImageList.Selection.Any();
         Commands.SavePdf.Enabled = Commands.SaveImages.Enabled = Commands.ClearAll.Enabled =
             Commands.ReorderMenu.Enabled =
                 Commands.EmailPdf.Enabled = Commands.Print.Enabled = ImageList.Images.Any();
@@ -684,34 +683,47 @@ public abstract class DesktopForm : EtoFormBase
 
     private void UpdateAutoRecognize()
     {
-        // These are effectively a checkbox menu item (whether to recognize automatically) followed by two radio items
-        // (which pages that applies to), with the icon acting as the check mark
-        bool auto = Config.Get(c => c.OcrAutoRecognize);
-        bool imports = Config.Get(c => c.OcrAutoRecognizeImports);
+        // Automatic OCR is either off, on for pages without text, or on for all scans (including ones that already
+        // have text from being run through OCR elsewhere). These act as radio items that can also be unchecked, with
+        // the icon acting as the check mark.
+        bool auto = Config.Get(c => c.EnableOcr);
+        bool allScans = Config.Get(c => c.OcrAllScans);
+        bool withoutText = auto && !allScans;
+        allScans = auto && allScans;
         _autoRecognizeCommands.Value = ImmutableList.Create<Command>(
-            new ActionCommand(() => SetAutoRecognize(!auto, imports))
+            new ActionCommand(() => SetAutoRecognize(!withoutText, false))
             {
-                MenuText = UiStrings.RecognizeAutomatically,
-                IconName = auto ? "accept" : null
+                MenuText = UiStrings.AutoOcrWithoutText,
+                IconName = withoutText ? "accept" : null
             },
-            new ActionCommand(() => SetAutoRecognize(auto, false))
+            new ActionCommand(() => SetAutoRecognize(!allScans, true))
             {
-                MenuText = UiStrings.RecognizeScansOnly,
-                IconName = imports ? null : "accept"
-            },
-            new ActionCommand(() => SetAutoRecognize(auto, true))
-            {
-                MenuText = UiStrings.RecognizeScansAndImports,
-                IconName = imports ? "accept" : null
+                MenuText = UiStrings.AutoOcrAllScans,
+                IconName = allScans ? "accept" : null
             });
+        // The toolbar button also shows which mode is active
+        Commands.Recognize.IconName = allScans ? "text_auto_all" : withoutText ? "text_auto" : "text";
     }
 
-    private void SetAutoRecognize(bool auto, bool imports)
+    private void SetAutoRecognize(bool auto, bool allScans)
     {
-        Config.User.Set(c => c.OcrAutoRecognize, auto);
-        Config.User.Set(c => c.OcrAutoRecognizeImports, imports);
+        if (auto && !_desktopController.IsOcrEnabled)
+        {
+            // OCR needs to be set up (i.e. have a language selected) before it can run automatically
+            Commands.OcrSettings.Execute();
+            if (!_desktopController.IsOcrEnabled)
+            {
+                return;
+            }
+        }
+        Config.User.Set(c => c.EnableOcr, auto);
+        Config.User.Set(c => c.OcrAllScans, auto && allScans);
         // Updating the command list recreates the menu items, so we need to wait until the click is fully handled
-        Invoker.Current.InvokeDispatch(UpdateAutoRecognize);
+        Invoker.Current.InvokeDispatch(() =>
+        {
+            UpdateAutoRecognize();
+            ApplyToolbarSettings();
+        });
     }
 
     protected virtual void UpdateTitle(ScanProfile? defaultProfile)

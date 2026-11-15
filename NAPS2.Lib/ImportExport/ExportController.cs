@@ -229,8 +229,10 @@ public class ExportController : IExportController
     {
         var op = _operationFactory.Create<SavePdfOperation>();
 
-        if (op.Start(filename, images, _config.Get(c => c.PdfSettings), _config.DefaultOcrParams(), emailMessage,
-                saveParams))
+        // If automatic OCR is off, we still pass the OCR params so that pages the user has explicitly run OCR for get
+        // their text, but the scope prevents OCR from being run for anything else
+        if (op.Start(filename, images, _config.Get(c => c.PdfSettings), _config.ManualOcrParams(), emailMessage,
+                saveParams, _config.DesktopPdfOcrScope()))
         {
             _operationProgress.ShowProgress(op);
         }

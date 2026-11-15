@@ -71,14 +71,14 @@ public class DesktopCommands
             }
             if (desktopController.IsOcrEnabled)
             {
-                desktopController.Recognize();
+                desktopController.RecognizeSelected();
             }
         })
         {
             Text = UiStrings.Recognize,
             IconName = "text"
         };
-        RecognizeSelected = new ActionCommand(() =>
+        RecognizeAll = new ActionCommand(() =>
         {
             if (!desktopController.IsOcrEnabled)
             {
@@ -86,11 +86,11 @@ public class DesktopCommands
             }
             if (desktopController.IsOcrEnabled)
             {
-                desktopController.RecognizeSelected();
+                desktopController.RecognizeAll();
             }
         })
         {
-            Text = UiStrings.RecognizeSelected
+            Text = UiStrings.RecognizeAll
         };
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
@@ -99,7 +99,7 @@ public class DesktopCommands
         };
         OcrSettings = new ActionCommand(desktopSubFormController.ShowOcrForm)
         {
-            Text = UiStrings.OcrSettings
+            Text = UiStrings.Settings
         };
         Import = new ActionCommand(desktopController.Import)
         {
@@ -460,7 +460,7 @@ public class DesktopCommands
     public ActionCommand Ocr { get; set; }
     public ActionCommand Recognize { get; set; }
     public ActionCommand OcrSettings { get; set; }
-    public ActionCommand RecognizeSelected { get; set; }
+    public ActionCommand RecognizeAll { get; set; }
     public ActionCommand ExtractSelected { get; set; }
     public ActionCommand Import { get; set; }
     public ActionCommand SaveAll { get; set; }

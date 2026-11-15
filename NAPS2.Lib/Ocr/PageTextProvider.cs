@@ -51,7 +51,7 @@ public class PageTextProvider
         _config = config;
     }
 
-    private OcrParams OcrParams => _config.DefaultOcrParams();
+    private OcrParams OcrParams => _config.ManualOcrParams();
 
     /// <summary>
     /// Whether OCR has been set up (enabled with a language selected), so that Recognize can be used.

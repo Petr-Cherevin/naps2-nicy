@@ -98,7 +98,23 @@ public class PdfExporter
                     // TODO: We also can consider doing this even for scanned image transforms - e.g. for deskew, maybe
                     // rather than rasterize that, rely on the pdf to do the skew transform, which should render better at
                     // different scaling.
-                    if (IsPdfStorage(image.Storage) && image.TransformState == TransformState.Empty)
+                    bool passthrough = IsPdfStorage(image.Storage) && image.TransformState == TransformState.Empty;
+                    if (ocrEngine != null)
+                    {
+                        bool hasOcrResult =
+                            _scanningContext.OcrRequestQueue.HasCachedResult(ocrEngine, image, ocrParams!);
+                        if (passthrough && (exportParams.OcrScope == PdfOcrScope.AllScans || hasOcrResult) &&
+                            GetPdfPageTextKind(image) == PdfPageTextKind.HiddenOverScan)
+                        {
+                            // The page is a scan that already has hidden text from a previous OCR, and we want to
+                            // replace that with our own OCR. So rather than passing through the original page (with
+                            // its original text), we export the scanned image like any other image.
+                            passthrough = false;
+                        }
+                        // If we're only using existing OCR results, we can't start OCR for anything else
+                        pageState.SkipOcr = exportParams.OcrScope == PdfOcrScope.CachedOnly && !hasOcrResult;
+                    }
+                    if (passthrough)
                     {
                         pdfPages.Add(pageState);
                     }
@@ -343,9 +359,22 @@ public class PdfExporter
         return null;
     }
 
+    private PdfPageTextKind GetPdfPageTextKind(ProcessedImage image)
+    {
+        try
+        {
+            return PdfiumPageTextReader.GetTextKind(image.Storage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not read PDF page text, falling back to passthrough");
+            return PdfPageTextKind.Visible;
+        }
+    }
+
     private PageExportState InitOcrStep(PageExportState state)
     {
-        if (state.CancelToken.IsCancellationRequested) return state;
+        if (state.CancelToken.IsCancellationRequested || state.SkipOcr) return state;
         var ext = state.Embedder!.OriginalFileFormat == ImageFileFormat.Png ? ".png" : ".jpg";
         string ocrTempFilePath = Path.Combine(_scanningContext.TempFolderPath, Path.GetRandomFileName() + ext);
         if (!_scanningContext.OcrRequestQueue.HasCachedResult(state.OcrEngine!, state.Image, state.OcrParams!))
@@ -367,8 +396,8 @@ public class PdfExporter
 
     private async Task<PageExportState> WaitForOcrStep(PageExportState state)
     {
-        if (state.CancelToken.IsCancellationRequested) return state;
-        await state.OcrTask!;
+        if (state.CancelToken.IsCancellationRequested || state.OcrTask == null) return state;
+        await state.OcrTask;
         return state;
     }
 
@@ -393,6 +422,10 @@ public class PdfExporter
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not import PDF page for possible OCR, falling back to non-OCR path");
+        }
+        if (state.SkipOcr)
+        {
+            state.NeedsOcr = false;
         }
         return state;
     }
@@ -632,6 +665,7 @@ public class PdfExporter
         public bool NeedsOcr { get; set; }
         public IEmbedder? Embedder { get; set; }
         public Task<OcrResult?>? OcrTask { get; set; }
+        public bool SkipOcr { get; set; }
     }
 
     private class ImageSource : IImageSource

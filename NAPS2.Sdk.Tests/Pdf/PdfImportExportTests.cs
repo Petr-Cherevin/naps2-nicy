@@ -1,4 +1,6 @@
+using System.Threading;
 using NAPS2.ImportExport;
+using NAPS2.Ocr;
 using NAPS2.Pdf;
 using NAPS2.Sdk.Tests.Asserts;
 using Xunit;
@@ -153,6 +155,76 @@ public class PdfImportExportTests : ContextualTests
         PdfAsserts.AssertDoesNotContainText("Page one.", redactedExportPath);
         PdfAsserts.AssertDoesNotContainText("Sized for printing unscaled", redactedExportPath);
         PdfAsserts.AssertContainsTextOnce("Page two.", redactedExportPath);
+    }
+
+    [Fact]
+    public async Task ExportWithCachedOcrOnly()
+    {
+        SetUpFakeOcr(new()
+        {
+            { LoadImage(PdfResources.word_patcht_p1), "Sized for printing unscaled" }
+        });
+        var ocrParams = new OcrParams("eng", OcrMode.Fast, 0);
+        var exportParams = new PdfExportParams { OcrScope = PdfOcrScope.CachedOnly };
+        var importPathForOcr = P("import_ocr.pdf");
+        File.WriteAllBytes(importPathForOcr, PdfResources.word_patcht_pdf);
+        var images = await _importer.Import(importPathForOcr).ToListAsync();
+
+        // Nothing has been through OCR yet, so there's no text to include
+        await _exporter.Export(_exportPath, images, exportParams, ocrParams);
+        PdfAsserts.AssertDoesNotContainText("Sized for printing unscaled", _exportPath);
+
+        // Once OCR has been run for the page, the result is included
+        var tempPath = ScanningContext.SaveToTempFile(images[0]);
+        await ScanningContext.OcrRequestQueue.Enqueue(ScanningContext, ScanningContext.OcrEngine!, images[0],
+            tempPath, ocrParams, OcrPriority.Foreground, CancellationToken.None);
+        var secondExportPath = P("export2.pdf");
+        await _exporter.Export(secondExportPath, images, exportParams, ocrParams);
+        PdfAsserts.AssertContainsTextOnce("Sized for printing unscaled", secondExportPath);
+    }
+
+    [Fact]
+    public async Task ExportScanWithExistingHiddenText()
+    {
+        SetUpFakeOcr(new()
+        {
+            { LoadImage(ImageResources.ocr_test), "REPLACEMENT." }
+        });
+        var ocrParams = new OcrParams("eng", OcrMode.Fast, 0);
+        File.WriteAllBytes(_importPath, PdfResources.ocr_test_output);
+        var images = await _importer.Import(_importPath).ToListAsync();
+
+        Assert.Equal(PdfPageTextKind.HiddenOverScan, PdfiumPageTextReader.GetTextKind(images[0].Storage));
+
+        // By default the page keeps the text it already has
+        await _exporter.Export(_exportPath, images, new PdfExportParams(), ocrParams);
+        PdfAsserts.AssertContainsTextOnce("ADVERTISEMENT.", _exportPath);
+        PdfAsserts.AssertDoesNotContainText("REPLACEMENT.", _exportPath);
+
+        // With AllScans the existing text is replaced by our own OCR
+        var secondExportPath = P("export2.pdf");
+        await _exporter.Export(secondExportPath, images, new PdfExportParams { OcrScope = PdfOcrScope.AllScans },
+            ocrParams);
+        PdfAsserts.AssertContainsTextOnce("REPLACEMENT.", secondExportPath);
+        PdfAsserts.AssertDoesNotContainText("ADVERTISEMENT.", secondExportPath);
+    }
+
+    [Fact]
+    public async Task VisibleTextIsNeverReplaced()
+    {
+        SetUpFakeOcr(new()
+        {
+            { LoadImage(PdfResources.word_p1), "REPLACEMENT." }
+        });
+        var ocrParams = new OcrParams("eng", OcrMode.Fast, 0);
+        var images = await _importer.Import(_importPath).ToListAsync();
+
+        Assert.Equal(PdfPageTextKind.Visible, PdfiumPageTextReader.GetTextKind(images[0].Storage));
+
+        await _exporter.Export(_exportPath, images, new PdfExportParams { OcrScope = PdfOcrScope.AllScans },
+            ocrParams);
+        PdfAsserts.AssertContainsTextOnce("Page one.", _exportPath);
+        PdfAsserts.AssertDoesNotContainText("REPLACEMENT.", _exportPath);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using NAPS2.Pdf.Pdfium;
 
@@ -11,10 +12,79 @@ internal record PdfPageWord(string Text, float Left, float Top, float Width, flo
 internal record PdfPageText(float PageWidth, float PageHeight, string Text, List<PdfPageWord> Words);
 
 /// <summary>
+/// Describes the text that a page from an imported PDF already has.
+/// </summary>
+internal enum PdfPageTextKind
+{
+    /// <summary>
+    /// The page has no text (or isn't a PDF page).
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// The page is a scan (a single full-page image) with a hidden text layer, i.e. it has already been through OCR.
+    /// </summary>
+    HiddenOverScan,
+
+    /// <summary>
+    /// The page has real, visible text (e.g. a PDF generated from a word processor).
+    /// </summary>
+    Visible
+}
+
+/// <summary>
 /// Reads the existing text layer (with word positions) from an image that's backed by a single-page PDF.
 /// </summary>
 internal static class PdfiumPageTextReader
 {
+    // The kind of text only depends on the stored PDF, so we only need to work it out once per storage object
+    private static readonly ConditionalWeakTable<IImageStorage, object> TextKindCache = new();
+
+    /// <summary>
+    /// Determines what kind of text the PDF page in the given storage has. This doesn't take into account any
+    /// transforms that may have been applied since the page was imported.
+    /// </summary>
+    public static PdfPageTextKind GetTextKind(IImageStorage storage)
+    {
+        if (!IsPdfStorage(storage))
+        {
+            return PdfPageTextKind.None;
+        }
+        if (TextKindCache.TryGetValue(storage, out var cached))
+        {
+            return (PdfPageTextKind) cached;
+        }
+        PdfPageTextKind kind;
+        // Pdfium is not thread-safe
+        lock (PdfiumNativeLibrary.Instance)
+        {
+            using var doc = LoadDocument(storage);
+            if (doc == null || doc.PageCount == 0)
+            {
+                return PdfPageTextKind.None;
+            }
+            using var page = doc.GetPage(0);
+            using var text = page.GetText();
+            if (text.ReadAll().Trim().Length == 0)
+            {
+                kind = PdfPageTextKind.None;
+            }
+            else
+            {
+                using var imageObj = PdfiumImageExtractor.GetSingleImageObject(page, true);
+                kind = imageObj != null ? PdfPageTextKind.HiddenOverScan : PdfPageTextKind.Visible;
+            }
+        }
+        lock (TextKindCache)
+        {
+            if (!TextKindCache.TryGetValue(storage, out _))
+            {
+                TextKindCache.Add(storage, kind);
+            }
+        }
+        return kind;
+    }
+
     public static bool IsPdfStorage(IImageStorage storage) => storage switch
     {
         ImageFileStorage fileStorage => Path.GetExtension(fileStorage.FullPath).ToLowerInvariant() == ".pdf",

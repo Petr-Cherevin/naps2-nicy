@@ -11,7 +11,6 @@ public class OcrSetupForm : EtoDialogBase
 {
     private readonly TesseractLanguageManager _tesseractLanguageManager;
 
-    private readonly CheckBox _enableOcr = C.CheckBox(UiStrings.MakePdfsSearchable);
     private readonly DropDown _ocrLang = C.DropDown();
     private readonly EnumDropDownWidget<LocalizedOcrMode> _ocrMode = new()
         { Items = [LocalizedOcrMode.Fast, LocalizedOcrMode.Best] };
@@ -30,7 +29,6 @@ public class OcrSetupForm : EtoDialogBase
 
         _tesseractLanguageManager = tesseractLanguageManager;
 
-        _enableOcr.CheckedChanged += EnableOcr_CheckedChanged;
         _moreLanguages.Click += MoreLanguages_Click;
 
         var configOcrMode = Config.Get(c => c.OcrMode);
@@ -43,7 +41,6 @@ public class OcrSetupForm : EtoDialogBase
         _code = Config.Get(c => c.OcrLanguageCode);
         _multiLangCode = Config.Get(c => c.LastOcrMultiLangCode);
 
-        _enableOcr.Checked = Config.Get(c => c.EnableOcr);
         _ocrLang.SelectedIndexChanged += OcrLang_SelectedIndexChanged;
         _ocrMode.SelectedItem = configOcrMode;
         _ocrPreProcessing.Checked = Config.Get(c => c.OcrPreProcessing);
@@ -57,7 +54,6 @@ public class OcrSetupForm : EtoDialogBase
         FormStateController.Resizable = false;
 
         LayoutController.Content = L.Column(
-            _enableOcr,
             L.Row(
                 C.Label(UiStrings.OcrLanguageLabel).AlignCenter().Padding(right: 40),
                 _ocrLang.Scale()
@@ -122,17 +118,11 @@ public class OcrSetupForm : EtoDialogBase
 
     private void UpdateView()
     {
-        bool isEnabled = _enableOcr.IsChecked();
-        _enableOcr.Enabled = !Config.AppLocked.Has(c => c.EnableOcr);
-        _ocrLang.Enabled = isEnabled && !Config.AppLocked.Has(c => c.OcrLanguageCode);
-        _ocrMode.Enabled = isEnabled && !Config.AppLocked.Has(c => c.OcrMode);
-        _ocrPreProcessing.Enabled = isEnabled && !Config.AppLocked.Has(c => c.OcrPreProcessing);
+        // Whether OCR runs automatically is chosen from the Recognize menu on the desktop, not here
+        _ocrLang.Enabled = !Config.AppLocked.Has(c => c.OcrLanguageCode);
+        _ocrMode.Enabled = !Config.AppLocked.Has(c => c.OcrMode);
+        _ocrPreProcessing.Enabled = !Config.AppLocked.Has(c => c.OcrPreProcessing);
         _moreLanguages.Enabled = !Config.AppLocked.Has(c => c.OcrLanguageCode);
-    }
-
-    private void EnableOcr_CheckedChanged(object? sender, EventArgs e)
-    {
-        UpdateView();
     }
 
     private void MoreLanguages_Click(object? sender, EventArgs e)
@@ -163,10 +153,9 @@ public class OcrSetupForm : EtoDialogBase
 
     private void Save()
     {
-        if (!Config.AppLocked.Has(c => c.EnableOcr))
+        if (!Config.AppLocked.Has(c => c.OcrLanguageCode))
         {
             var transact = Config.User.BeginTransaction();
-            transact.Set(c => c.EnableOcr, _enableOcr.IsChecked());
             transact.Set(c => c.OcrLanguageCode, _ocrLang.SelectedKey);
             if (_multiLangCode?.Contains("+") == true)
             {

@@ -35,7 +35,8 @@ internal class SavePdfOperation : OperationBase
     /// <param name="emailMessage">If specified, the saved file(s) are attached to the message and it is sent.</param>
     /// <param name="saveParams">How files are named and existing files are handled.</param>
     public bool Start(string fileName, ICollection<ProcessedImage> images, PdfSettings pdfSettings,
-        OcrParams ocrParams, EmailMessage? emailMessage = null, SaveParams? saveParams = null)
+        OcrParams ocrParams, EmailMessage? emailMessage = null, SaveParams? saveParams = null,
+        PdfOcrScope ocrScope = PdfOcrScope.PagesWithoutText)
     {
         ProgressTitle = emailMessage != null ? MiscResources.EmailPdfProgress : MiscResources.SavePdfProgress;
         saveParams ??= new SaveParams();
@@ -94,7 +95,10 @@ internal class SavePdfOperation : OperationBase
                             await WaitForFileNotInUse(currentFileName) &&
                             await _pdfExporter.Export(currentFileName, imagesForFile,
                                 new PdfExportParams(pdfSettings.Metadata.Substitute(_nameManager, context.DateTime),
-                                    pdfSettings.Encryption, pdfSettings.Compat, pdfSettings.Compression),
+                                    pdfSettings.Encryption, pdfSettings.Compat, pdfSettings.Compression)
+                                {
+                                    OcrScope = ocrScope
+                                },
                                 ocrParams, progress),
                         GetSaveErrorMessage);
                     if (!result)

@@ -29,22 +29,38 @@ public static class ConfigExtensions
         };
     }
 
-    public static OcrParams OcrAfterScanningParams(this Naps2Config config)
+    /// <summary>
+    /// Gets the OCR params to use when OCR is explicitly requested by the user. Unlike DefaultOcrParams, this doesn't
+    /// depend on automatic OCR (EnableOcr) being turned on, only on a language being selected.
+    /// </summary>
+    public static OcrParams ManualOcrParams(this Naps2Config config)
     {
-        if (!config.Get(c => c.OcrAutoRecognize))
+        if (string.IsNullOrEmpty(config.Get(c => c.OcrLanguageCode)))
         {
             return OcrParams.Empty;
         }
-        return config.DefaultOcrParams();
+        return new OcrParams(
+            config.Get(c => c.OcrLanguageCode),
+            MapOcrMode(config.Get(c => c.OcrMode), config.Get(c => c.OcrPreProcessing)),
+            config.Get(c => c.OcrTimeoutInSeconds));
     }
 
     /// <summary>
-    /// Gets the OCR params to use for pages added to the document by importing or pasting, which is only non-empty
-    /// if automatic recognition is turned on and set to include imported pages.
+    /// Gets which pages OCR should be run for when saving a PDF from the desktop window. If automatic OCR is off,
+    /// only pages the user has already run OCR for get text.
     /// </summary>
-    public static OcrParams OcrAfterImportingParams(this Naps2Config config)
+    public static PdfOcrScope DesktopPdfOcrScope(this Naps2Config config)
     {
-        if (!config.Get(c => c.OcrAutoRecognize) || !config.Get(c => c.OcrAutoRecognizeImports))
+        if (!config.Get(c => c.EnableOcr))
+        {
+            return PdfOcrScope.CachedOnly;
+        }
+        return config.Get(c => c.OcrAllScans) ? PdfOcrScope.AllScans : PdfOcrScope.PagesWithoutText;
+    }
+
+    public static OcrParams OcrAfterScanningParams(this Naps2Config config)
+    {
+        if (!config.Get(c => c.OcrAfterScanning))
         {
             return OcrParams.Empty;
         }

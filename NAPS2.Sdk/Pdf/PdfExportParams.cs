@@ -25,4 +25,9 @@ public record PdfExportParams
     public PdfCompat Compat { get; init; } = PdfCompat.Default;
 
     public PdfCompression Compression { get; init; } = new();
+
+    /// <summary>
+    /// Determines which pages OCR is run for, if OCR parameters are specified for the export.
+    /// </summary>
+    public PdfOcrScope OcrScope { get; init; } = PdfOcrScope.PagesWithoutText;
 }
