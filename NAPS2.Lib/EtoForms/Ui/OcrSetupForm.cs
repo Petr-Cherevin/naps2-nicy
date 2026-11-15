@@ -225,6 +225,8 @@ public class OcrSetupForm : EtoDialogBase
         LoadLanguages(_customCode);
     }
 
+    public bool Saved { get; private set; }
+
     private bool Save()
     {
         var transaction = Config.User.BeginTransaction();
@@ -264,6 +266,7 @@ public class OcrSetupForm : EtoDialogBase
             transaction.Set(c => c.OcrPreProcessing, _ocrPreProcessing.IsChecked());
         }
         transaction.Commit();
+        Saved = true;
         return true;
     }
 }

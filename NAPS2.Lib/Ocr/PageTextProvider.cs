@@ -115,10 +115,11 @@ public class PageTextProvider
     /// <summary>
     /// Runs OCR on the image in its current state (or uses cached results if available) and returns the text.
     /// </summary>
-    public async Task<PageText?> Recognize(ProcessedImage image, CancellationToken cancelToken = default)
+    public async Task<PageText?> Recognize(ProcessedImage image, CancellationToken cancelToken = default,
+        bool force = false)
     {
         var cached = GetCachedOcrText(image);
-        if (cached != null)
+        if (!force && cached != null)
         {
             return cached;
         }
@@ -131,7 +132,7 @@ public class PageTextProvider
         // The request queue takes ownership of the temp file and guarantees its eventual deletion
         var tempImageFilePath = await Task.Run(() => _scanningContext.SaveToTempFile(image), cancelToken);
         var result = await _scanningContext.OcrRequestQueue.Enqueue(_scanningContext, ocrEngine, image,
-            tempImageFilePath, ocrParams, OcrPriority.Foreground, cancelToken);
+            tempImageFilePath, ocrParams, OcrPriority.Foreground, cancelToken, force);
         return result == null ? null : PageText.FromOcrResult(result);
     }
 

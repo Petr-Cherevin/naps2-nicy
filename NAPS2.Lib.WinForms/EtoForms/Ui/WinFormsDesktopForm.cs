@@ -50,6 +50,7 @@ public class WinFormsDesktopForm : DesktopForm
             editWithController)
     {
         _form = this.ToNative();
+        WindowStartupDiagnostics.Attach(_form);
         _form.FormClosing += OnFormClosing;
 
         // TODO: Remove this if https://github.com/picoe/Eto/issues/2601 is fixed

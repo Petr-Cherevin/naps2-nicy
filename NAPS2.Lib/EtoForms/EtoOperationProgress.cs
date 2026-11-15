@@ -47,6 +47,7 @@ public class EtoOperationProgress : OperationProgress
 
     public override void ShowModalProgress(IOperation op)
     {
+        DiagnosticLog.Write("Progress", $"ShowModal requested finished={op.IsFinished} type={op.GetType().Name}");
         Attach(op);
 
         if (!op.IsFinished)
@@ -55,7 +56,9 @@ public class EtoOperationProgress : OperationProgress
             {
                 var form = _formFactory.Create<ProgressForm>();
                 form.Operation = op;
+                DiagnosticLog.Write("Progress", "Opening modal progress form");
                 form.ShowModal();
+                DiagnosticLog.Write("Progress", "Modal progress form closed");
             });
         }
 

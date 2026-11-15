@@ -111,12 +111,19 @@ internal class OcrRequestQueue
     /// <param name="cancelToken">A cancellation token.</param>
     /// <returns>The result of the OCR operation, or null if an error occurred (e.g. engine misconfigured).</returns>
     public async Task<OcrResult?> Enqueue(ScanningContext scanningContext, IOcrEngine ocrEngine, ProcessedImage image,
-        string tempImageFilePath, OcrParams ocrParams, OcrPriority priority, CancellationToken cancelToken)
+        string tempImageFilePath, OcrParams ocrParams, OcrPriority priority, CancellationToken cancelToken, bool force = false)
     {
         OcrRequest req;
+        OcrRequest? previousCompleted = null;
+        var reqParams = new OcrRequestParams(image.GetWeakReference(), ocrEngine, ocrParams);
         lock (this)
         {
-            var reqParams = new OcrRequestParams(image.GetWeakReference(), ocrEngine, ocrParams);
+            if (force && _requestCache.TryGetValue(reqParams, out var previous) &&
+                previous.State == OcrRequestState.Completed)
+            {
+                previousCompleted = previous;
+                _requestCache[reqParams] = new OcrRequest(scanningContext, this, reqParams);
+            }
             req = _requestCache.GetOrSet(reqParams, () => new OcrRequest(scanningContext, this, reqParams));
             if (req.State is OcrRequestState.Canceled or OcrRequestState.Error)
             {
@@ -132,11 +139,22 @@ internal class OcrRequestQueue
         await Task.WhenAny(req.CompletedTask, cancelToken.WaitHandle.WaitOneAsync());
         // If no requests are pending, stop the worker threads
         EnsureWorkerThreads(scanningContext);
+        // Roll back a failed forced re-recognition to the previous text.
+        if (previousCompleted != null &&
+            (!req.CompletedTask.IsCompleted || req.CompletedTask.Result == null))
+        {
+            lock (this)
+            {
+                if (_requestCache.TryGetValue(reqParams, out var current) && ReferenceEquals(current, req))
+                {
+                    _requestCache[reqParams] = previousCompleted;
+                }
+            }
+        }
         if (req.CompletedTask.IsCompleted)
         {
             NotifyResultsChanged();
         }
-        // Return null if canceled
         return req.CompletedTask.IsCompleted ? req.CompletedTask.Result : null;
     }
 

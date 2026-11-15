@@ -144,6 +144,8 @@ public abstract class EtoPlatform
     {
     }
 
+    public virtual void RefreshPageTextBadges(IListView<UiImage> listView) => listView.RegenerateImages();
+
     public virtual void ConfigureZoomButton(Button button, string icon)
     {
     }

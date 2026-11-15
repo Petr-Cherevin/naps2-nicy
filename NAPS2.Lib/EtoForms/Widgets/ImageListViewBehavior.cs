@@ -1,4 +1,5 @@
 using Eto.Drawing;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Eto.Forms;
 using Google.Protobuf;
@@ -14,10 +15,19 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private readonly PageTextStatusProvider _pageTextStatusProvider;
     private readonly ImageTransfer _imageTransfer = new();
     private readonly Dictionary<PageTextStatus, Bitmap> _badges = new();
-    // Page-number rendering draws the badge on every paint. Cache source detection per page and
-    // transform state so a slow computer doesn't parse the original PDF on each repaint.
+    // Status detection may read a PDF text layer. Never do that on the UI/thumbnail rendering thread.
+    // A single sequential worker lets thumbnails and import progress stay responsive on slower PCs.
     private ConditionalWeakTable<UiImage, BadgeCacheState> _statusCache = new();
-    private sealed record BadgeCacheState(object TransformState, string? LanguageCode, PageTextStatus Status);
+    private readonly ConcurrentQueue<(UiImage Image, BadgeCacheState Entry, object State, string? Language)> _pending = new();
+    private int _workerRunning;
+
+    private sealed class BadgeCacheState
+    {
+        public object? State;
+        public string? Language;
+        public PageTextStatus? Status;
+        public bool Pending;
+    }
 
     // Badge size and distance from the top-left corner, as fractions of the thumbnail size
     private const float BadgeSizeFraction = 0.13f;
@@ -55,8 +65,9 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     {
         using var thumbnail = _thumbnailProvider.GetThumbnail(item, listView.ImageSize.Width);
         var image = thumbnail.ToEtoImage();
-        // On WinForms with page numbers the thumbnail is resized; draw the badge after resizing instead.
-        if (!EtoPlatform.Current.IsWinForms || !ShowPageNumbers)
+        // WinForms draws all badges on the screen, after scaling the thumbnail.
+        // Other platforms bake the cached badge in, and never synchronously parse a PDF.
+        if (!EtoPlatform.Current.IsWinForms)
         {
             DrawTextBadge(image, item, listView.ImageSize.Width, listView.Control);
         }
@@ -68,7 +79,7 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     {
         try
         {
-            var badge = GetBadge(_pageTextStatusProvider.GetStatus(item));
+            var badge = GetBadgeFor(item);
             if (badge == null)
             {
                 return;
@@ -93,23 +104,78 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
         }
     }
 
+    /// <summary>Returns a badge if the status is known; otherwise schedules background detection.</summary>
     public Bitmap? GetBadgeFor(UiImage item)
     {
+        if (item.IsDisposed) return null;
         var state = item.TransformState;
-        var languageCode = _config.Get(c => c.OcrLanguageCode);
-        var cache = _statusCache;
-        if (cache.TryGetValue(item, out var cached) && Equals(cached.TransformState, state) &&
-            cached.LanguageCode == languageCode)
+        var language = _config.Get(c => c.OcrLanguageCode);
+        var entry = _statusCache.GetValue(item, _ => new BadgeCacheState());
+        lock (entry)
         {
-            return GetBadge(cached.Status);
+            if (!Equals(entry.State, state) || entry.Language != language)
+            {
+                entry.State = state;
+                entry.Language = language;
+                entry.Status = null;
+                entry.Pending = false;
+            }
+            if (entry.Status is { } status)
+            {
+                return GetBadge(status);
+            }
+            if (!entry.Pending)
+            {
+                entry.Pending = true;
+                _pending.Enqueue((item, entry, state, language));
+                StartWorker();
+            }
         }
-        var status = _pageTextStatusProvider.GetStatus(item);
-        lock (cache)
+        return null;
+    }
+
+    private void StartWorker()
+    {
+        if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
         {
-            cache.Remove(item);
-            cache.Add(item, new BadgeCacheState(state, languageCode, status));
+            _ = Task.Run(ProcessPendingStatuses);
         }
-        return GetBadge(status);
+    }
+
+    private void ProcessPendingStatuses()
+    {
+        while (true)
+        {
+            while (_pending.TryDequeue(out var request))
+            {
+                var (item, entry, state, language) = request;
+                try
+                {
+                    if (item.IsDisposed) continue;
+                    // The page might have been modified while waiting; stale results are ignored below.
+                    var result = _pageTextStatusProvider.GetStatus(item);
+                    lock (entry)
+                    {
+                        if (Equals(entry.State, state) && entry.Language == language)
+                        {
+                            entry.Status = result;
+                            entry.Pending = false;
+                        }
+                    }
+                    BadgesChanged?.Invoke(this, EventArgs.Empty);
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorException("Error checking OCR badge in background", ex);
+                    lock (entry) entry.Pending = false;
+                }
+            }
+            Interlocked.Exchange(ref _workerRunning, 0);
+            if (_pending.IsEmpty || Interlocked.CompareExchange(ref _workerRunning, 1, 0) != 0)
+            {
+                return;
+            }
+        }
     }
 
     private Bitmap? GetBadge(PageTextStatus status)

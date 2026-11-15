@@ -8,11 +8,13 @@ namespace NAPS2.EtoForms.Ui;
 public class WinFormsPreviewForm : PreviewForm
 {
     private ToolStripSplitButton? _editorButton;
+    private ToolStripSplitButton? _textButton;
 
     public WinFormsPreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
         IIconProvider iconProvider, ColorScheme colorScheme, EditWithController editWithController,
-        NAPS2.Ocr.PageTextProvider pageTextProvider) : base(config, desktopCommands, imageList, iconProvider, colorScheme,
-        editWithController, pageTextProvider)
+        NAPS2.Ocr.PageTextProvider pageTextProvider, NAPS2.Ocr.PageTextStatusProvider pageTextStatusProvider)
+        : base(config, desktopCommands, imageList, iconProvider, colorScheme,
+        editWithController, pageTextProvider, pageTextStatusProvider)
     {
         editWithController.AppChanged += EditorAppChanged;
     }
@@ -23,6 +25,26 @@ public class WinFormsPreviewForm : PreviewForm
         var toolStrip = (ToolStrip) ToolBar.ControlObject;
         EtoPlatform.Current.AttachDpiDependency(this,
             scale => toolStrip.ImageScalingSize = new Size((int) (16 * scale), (int) (16 * scale)));
+
+        // Give the existing Show Text button an independent drop-down without changing its primary action.
+        if (ShowTextToolItem.ControlObject is ToolStripItem textOriginal)
+        {
+            int textIndex = toolStrip.Items.IndexOf(textOriginal);
+            if (textIndex >= 0)
+            {
+                _textButton = new ToolStripSplitButton
+                {
+                    DisplayStyle = ToolStripItemDisplayStyle.Image,
+                    Image = textOriginal.Image,
+                    ToolTipText = UiStrings.ShowText,
+                    AutoToolTip = true
+                };
+                _textButton.ButtonClick += (_, _) => ShowTextCommand.Execute();
+                _textButton.DropDownOpening += (_, _) => PopulateTextMenu();
+                toolStrip.Items.RemoveAt(textIndex);
+                toolStrip.Items.Insert(textIndex, _textButton);
+            }
+        }
 
         // Eto's ButtonToolItem has only a primary Click action. Replace the native WinForms
         // control with a real split button: the large part edits, the arrow chooses an editor.
@@ -45,6 +67,30 @@ public class WinFormsPreviewForm : PreviewForm
                 UpdateEditorButton();
             }
         }
+    }
+
+    private void PopulateTextMenu()
+    {
+        if (_textButton == null) return;
+        _textButton.DropDownItems.Clear();
+
+        var show = new ToolStripMenuItem(UiStrings.ShowText);
+        show.Click += (_, _) => ShowTextCommand.Execute();
+        _textButton.DropDownItems.Add(show);
+        _textButton.DropDownItems.Add(new ToolStripSeparator());
+
+        var rerun = new ToolStripMenuItem(OcrActionText.RecognizePageAgain);
+        rerun.Click += async (_, _) => await RecognizeCurrentAgain(false);
+        _textButton.DropDownItems.Add(rerun);
+
+        var configureAndRerun = new ToolStripMenuItem(OcrActionText.ConfigureAndRecognize);
+        configureAndRerun.Click += async (_, _) => await RecognizeCurrentAgain(true);
+        _textButton.DropDownItems.Add(configureAndRerun);
+
+        _textButton.DropDownItems.Add(new ToolStripSeparator());
+        var configure = new ToolStripMenuItem(OcrActionText.ConfigureOcr);
+        configure.Click += (_, _) => ShowRecognitionSettings();
+        _textButton.DropDownItems.Add(configure);
     }
 
     private void EditorAppChanged(object? sender, EventArgs e) =>

@@ -285,6 +285,18 @@ public class WinFormsEtoPlatform : EtoPlatform
         return progressBar.Size(420, 40);
     }
 
+    public override void RefreshPageTextBadges(IListView<UiImage> listView)
+    {
+        if (listView is WinFormsListView<UiImage> winFormsListView)
+        {
+            winFormsListView.RefreshBadges();
+        }
+        else
+        {
+            base.RefreshPageTextBadges(listView);
+        }
+    }
+
     public override void InitForm(Window window)
     {
         var form = window.ToNative();

@@ -78,6 +78,21 @@ public class DesktopCommands
             Text = UiStrings.Recognize,
             IconName = "text"
         };
+        RecognizeAgainSelected = new ActionCommand(() =>
+        {
+            if (!desktopController.IsOcrEnabled)
+            {
+                desktopSubFormController.ShowOcrForm();
+            }
+            if (desktopController.IsOcrEnabled)
+            {
+                desktopController.RecognizeSelectedAgain();
+            }
+        })
+        {
+            Text = OcrActionText.RecognizeSelectedAgain,
+            IconName = "text"
+        };
         RecognizeAll = new ActionCommand(() =>
         {
             if (!desktopController.IsOcrEnabled)
@@ -470,6 +485,7 @@ public class DesktopCommands
     public ActionCommand Recognize { get; set; }
     public ActionCommand OcrSettings { get; set; }
     public ActionCommand RecognizeAll { get; set; }
+    public ActionCommand RecognizeAgainSelected { get; set; }
     public ActionCommand ClearTextSelected { get; set; }
     public ActionCommand ClearTextAll { get; set; }
     public ActionCommand ExtractSelected { get; set; }

@@ -15,6 +15,10 @@ public class PreviewForm : EtoDialogBase
     private readonly EditWithController _editWithController;
 
     private readonly ButtonToolItem _pageNumberButton = new();
+    private readonly ButtonToolItem _ocrStatusButton = new() { Enabled = false, Visible = false };
+    private readonly ButtonToolItem _showTextToolItem = new();
+    protected ButtonToolItem ShowTextToolItem => _showTextToolItem;
+    private readonly PageTextStatusProvider _pageTextStatusProvider;
     private readonly ButtonToolItem _zoomPercentButton = new();
     private readonly ButtonToolItem _editWithAppButton = new();
     protected ButtonToolItem EditWithAppToolItem => _editWithAppButton;
@@ -29,9 +33,11 @@ public class PreviewForm : EtoDialogBase
 
     public PreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
         IIconProvider iconProvider, ColorScheme colorScheme, EditWithController editWithController,
-        PageTextProvider pageTextProvider) : base(config)
+        PageTextProvider pageTextProvider, PageTextStatusProvider pageTextStatusProvider) : base(config)
     {
         _pageTextProvider = pageTextProvider;
+        _pageTextStatusProvider = pageTextStatusProvider;
+        _pageTextStatusProvider.StatusChanged += PageTextStatusChanged;
         Title = UiStrings.PreviewFormTitle;
         Icon = EtoPlatform.Current.IsGtk ? new Icon(1f, Icons.scanner_128.ToEtoImage()) : Icons.favicon.ToEtoIcon();
         Maximizable = true;
@@ -261,10 +267,13 @@ public class PreviewForm : EtoDialogBase
     {
         EtoPlatform.Current.AttachDpiDependency(this, UpdateEditWithAppButton);
         EtoPlatform.Current.AttachDpiDependency(this, UpdateRedactColor);
+        _showTextToolItem.Command = ShowTextCommand;
+        _showTextToolItem.ToolTip = ShowTextCommand.Text;
         var items = new Dictionary<string, ToolItem>
         {
             // TODO: Either embed an editable textbox, or make this button pop up a window or widget to enter a page number
             [PreviewToolbarLayout.PageNumber] = _pageNumberButton,
+            [PreviewToolbarLayout.TextStatus] = _ocrStatusButton,
             [PreviewToolbarLayout.Previous] = MakeToolButton(GoToPrevCommand),
             [PreviewToolbarLayout.Next] = MakeToolButton(GoToNextCommand),
             [PreviewToolbarLayout.ZoomWindow] = MakeToolButton(ZoomWindowCommand),
@@ -295,7 +304,7 @@ public class PreviewForm : EtoDialogBase
             [PreviewToolbarLayout.RedactColor] = _redactColorButton,
             [PreviewToolbarLayout.RedactUndo] = MakeToolButton(RedactUndoCommand),
             [PreviewToolbarLayout.RedactApply] = MakeToolButton(RedactApplyCommand),
-            [PreviewToolbarLayout.ShowText] = MakeToolButton(ShowTextCommand),
+            [PreviewToolbarLayout.ShowText] = WithToolItemIcon(_showTextToolItem, "text"),
             [PreviewToolbarLayout.CopyText] = MakeToolButton(CopyTextCommand),
             [PreviewToolbarLayout.ClearText] = MakeToolButton(ClearTextCommand),
             [PreviewToolbarLayout.Split] = MakeToolButton(Commands.Split),
@@ -451,6 +460,43 @@ public class PreviewForm : EtoDialogBase
     protected virtual void UpdatePage()
     {
         _pageNumberButton.Text = string.Format(UiStrings.XOfY, ImageIndex + 1, ImageList.Images.Count);
+        RefreshPreviewTextStatus();
+    }
+
+    private void PageTextStatusChanged(object? sender, EventArgs e) =>
+        Invoker.Current.InvokeDispatch(RefreshPreviewTextStatus);
+
+    private async void RefreshPreviewTextStatus()
+    {
+        var page = _currentImage;
+        if (page == null) return;
+        PageTextStatus status;
+        try
+        {
+            status = await Task.Run(() => _pageTextStatusProvider.GetStatus(page));
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException("Error updating preview OCR badge", ex);
+            return;
+        }
+        if (page != _currentImage) return;
+        _ocrStatusButton.Visible = status != PageTextStatus.None;
+        if (status == PageTextStatus.None) return;
+        _ocrStatusButton.ToolTip = status switch
+        {
+            PageTextStatus.Recognized => OcrActionText.Recognized,
+            PageTextStatus.RecognizedElsewhere => OcrActionText.RecognizedElsewhere,
+            PageTextStatus.OriginalText => OcrActionText.OriginalText,
+            _ => OcrActionText.LostText
+        };
+        _ocrStatusButton.Image = (status switch
+        {
+            PageTextStatus.Recognized => Icons.textbadge_ours,
+            PageTextStatus.RecognizedElsewhere => Icons.textbadge_other,
+            PageTextStatus.OriginalText => Icons.textbadge_real,
+            _ => Icons.textbadge_lost
+        }).ToEtoImage();
     }
 
     private async Task UpdateImage()
@@ -505,6 +551,7 @@ public class PreviewForm : EtoDialogBase
         base.OnClosed(e);
         // Make sure the desktop reflects any changes to the text of pages made from this window
         _pageTextProvider.NotifyStatusChanged();
+        _pageTextStatusProvider.StatusChanged -= PageTextStatusChanged;
     }
 
     private void SetText(PageText? text)
@@ -574,7 +621,45 @@ public class PreviewForm : EtoDialogBase
         MessageBox.Show(this, message, UiStrings.ShowText, MessageBoxButtons.YesNo, MessageBoxType.Question) ==
         DialogResult.Yes;
 
-    private async Task<PageText?> RecognizeText(ProcessedImage image)
+    public void ShowRecognitionSettings()
+    {
+        var dialog = FormFactory.Create<OcrSetupForm>();
+        dialog.ShowModal();
+        if (dialog.Saved)
+        {
+            _pageTextProvider.NotifyStatusChanged();
+            RefreshPreviewTextStatus();
+        }
+    }
+
+    public async Task RecognizeCurrentAgain(bool configure)
+    {
+        if (configure)
+        {
+            var dialog = FormFactory.Create<OcrSetupForm>();
+            dialog.ShowModal();
+            if (!dialog.Saved) return;
+        }
+        var page = CurrentImage;
+        using var image = page.GetClonedImage();
+        var previous = _textView.Text;
+        var text = await RecognizeText(image, force: true);
+        if (CurrentImage != page) return;
+        if (text != null && !text.IsEmpty)
+        {
+            SetText(text);
+            _textVisibility.IsVisible = true;
+        }
+        else
+        {
+            // Failed OCR should not erase the previously displayed text.
+            SetText(previous);
+            _textVisibility.IsVisible = previous != null;
+        }
+        RefreshPreviewTextStatus();
+    }
+
+    private async Task<PageText?> RecognizeText(ProcessedImage image, bool force = false)
     {
         if (!_pageTextProvider.CanRecognize)
         {
@@ -591,7 +676,7 @@ public class PreviewForm : EtoDialogBase
         _textVisibility.IsVisible = true;
         try
         {
-            var text = await _pageTextProvider.Recognize(image);
+            var text = await _pageTextProvider.Recognize(image, force: force);
             if (text == null || text.IsEmpty)
             {
                 MessageBox.Show(this, UiStrings.NoTextFound, UiStrings.ShowText, MessageBoxType.Information);

@@ -47,6 +47,7 @@ public class ProgressForm : EtoDialogBase
         set
         {
             _operation = value;
+            DiagnosticLog.Write("ProgressForm", "Operation attached");
             _operation.StatusChanged += operation_StatusChanged;
             _operation.Finished += operation_Finished;
             _cancel.Visible = _operation.AllowCancel;
@@ -73,6 +74,7 @@ public class ProgressForm : EtoDialogBase
     {
         base.OnLoad(e);
         _loaded = true;
+        DiagnosticLog.Write("ProgressForm", "OnLoad");
         Title = _operation.ProgressTitle;
         _runInBg.Visible = _operation.AllowBackground;
 
@@ -85,6 +87,7 @@ public class ProgressForm : EtoDialogBase
 
     private void DisplayProgress()
     {
+        DiagnosticLog.Write("ProgressForm", $"Render current={Operation.Status?.CurrentProgress} max={Operation.Status?.MaxProgress}");
         EtoOperationProgress.RenderStatus(Operation, _status, _numeric, _progressBar);
     }
 

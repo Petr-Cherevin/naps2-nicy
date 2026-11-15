@@ -7,8 +7,9 @@ public class GtkPreviewForm : PreviewForm
 {
     public GtkPreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
         IIconProvider iconProvider, ColorScheme colorScheme, EditWithController editWithController,
-        NAPS2.Ocr.PageTextProvider pageTextProvider) : base(config, desktopCommands, imageList, iconProvider, colorScheme,
-        editWithController, pageTextProvider)
+        NAPS2.Ocr.PageTextProvider pageTextProvider, NAPS2.Ocr.PageTextStatusProvider pageTextStatusProvider)
+        : base(config, desktopCommands, imageList, iconProvider, colorScheme,
+        editWithController, pageTextProvider, pageTextStatusProvider)
     {
     }
 

@@ -199,6 +199,7 @@ public abstract class DesktopForm : EtoFormBase
                 new SeparatorMenuItem(),
                 C.ButtonMenuItem(this, Commands.SelectAll),
                 C.ButtonMenuItem(this, Commands.Copy),
+                C.ButtonMenuItem(this, Commands.RecognizeAgainSelected),
                 C.ButtonMenuItem(this, _pasteAfterCommand),
                 C.ButtonMenuItem(this, _pasteAtEndCommand),
                 new SeparatorMenuItem(),
@@ -379,6 +380,7 @@ public abstract class DesktopForm : EtoFormBase
         if (ShowButton(ToolbarButtons.Recognize))
             CreateToolbarButtonWithMenu(Commands.Recognize, DesktopToolbarMenuType.Recognize, new MenuProvider()
                 .Append(Commands.RecognizeAll)
+                .Append(Commands.RecognizeAgainSelected)
                 .Separator()
                 .Append(Commands.ClearTextSelected)
                 .Append(Commands.ClearTextAll)

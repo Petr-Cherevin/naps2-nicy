@@ -20,6 +20,7 @@ public class RecognizeOperation : OperationBase
     private IOcrEngine? _ocrEngine;
     private OcrParams _ocrParams = OcrParams.Empty;
     private OcrPriority _ocrPriority;
+    private bool _force;
 
     public RecognizeOperation(ScanningContext scanningContext)
     {
@@ -34,9 +35,10 @@ public class RecognizeOperation : OperationBase
     /// <summary>
     /// Starts the operation with a fixed set of images.
     /// </summary>
-    public bool Start(IEnumerable<UiImage> images, OcrParams ocrParams, OcrPriority ocrPriority)
+    public bool Start(IEnumerable<UiImage> images, OcrParams ocrParams, OcrPriority ocrPriority,
+        bool force = false)
     {
-        if (!Start(ocrParams, ocrPriority))
+        if (!Start(ocrParams, ocrPriority, force))
         {
             return false;
         }
@@ -51,8 +53,9 @@ public class RecognizeOperation : OperationBase
     /// <summary>
     /// Starts the operation with no images. Use Add to provide images, then Seal once all images have been added.
     /// </summary>
-    public bool Start(OcrParams ocrParams, OcrPriority ocrPriority)
+    public bool Start(OcrParams ocrParams, OcrPriority ocrPriority, bool force = false)
     {
+        _force = force;
         _ocrEngine = _scanningContext.OcrEngine;
         if (_ocrEngine == null || string.IsNullOrEmpty(ocrParams.LanguageCode))
         {
@@ -105,7 +108,7 @@ public class RecognizeOperation : OperationBase
         {
             using var imageToDispose = image;
             var queue = _scanningContext.OcrRequestQueue;
-            if (!CancelToken.IsCancellationRequested && !queue.HasCachedResult(_ocrEngine!, image, _ocrParams))
+            if (!CancelToken.IsCancellationRequested && (_force || !queue.HasCachedResult(_ocrEngine!, image, _ocrParams)))
             {
                 // The request queue takes ownership of the temp file and guarantees its eventual deletion
                 string tempImageFilePath;
@@ -119,7 +122,7 @@ public class RecognizeOperation : OperationBase
                     _renderLimiter.Release();
                 }
                 await queue.Enqueue(_scanningContext, _ocrEngine!, image, tempImageFilePath, _ocrParams, _ocrPriority,
-                    CancelToken);
+                    CancelToken, _force);
             }
         }
         catch (OperationCanceledException)

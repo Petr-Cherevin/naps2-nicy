@@ -12,6 +12,7 @@ namespace NAPS2.Config;
 public static class PreviewToolbarLayout
 {
     public const string PageNumber = "page";
+    public const string TextStatus = "textStatus";
     public const string Previous = "prev";
     public const string Next = "next";
     public const string ZoomWindow = "zoomWindow";
@@ -46,7 +47,7 @@ public static class PreviewToolbarLayout
 
     public static readonly ImmutableList<string> DefaultOrder =
     [
-        PageNumber, Previous, Next,
+        PageNumber, TextStatus, Previous, Next,
         "sep1",
         ZoomWindow, ZoomActual, ZoomIn, ZoomOut, ZoomPercent,
         "sep2",

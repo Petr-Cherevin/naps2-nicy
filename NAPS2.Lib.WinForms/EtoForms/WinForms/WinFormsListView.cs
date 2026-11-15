@@ -136,20 +136,9 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
                 e.Graphics.FillRectangle(PageNumberSelectionBrush, selectionRect);
             }
 
-            // Render the OCR badge at screen resolution, after the thumbnail has been scaled.
+            // Draw the page before its badge. The badge is drawn at display size, not resized with the page.
             e.Graphics.DrawImage(image, new Rectangle(x, y, width, height));
-            if (_behavior is ImageListViewBehavior imageBehavior && e.Item.Tag is UiImage uiImage &&
-                imageBehavior.GetBadgeFor(uiImage) is { } badge)
-            {
-                int size = Math.Clamp((int) Math.Round(Math.Min(width, height) * 0.13),
-                    (int) Math.Round(11 * _dpiScale), (int) Math.Round(26 * _dpiScale));
-                size = Math.Min(size, Math.Min(width, height));
-                int offset = Math.Max(1, (int) Math.Round(Math.Min(width, height) * 0.015));
-                var oldInterpolation = e.Graphics.InterpolationMode;
-                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                e.Graphics.DrawImage(badge.ToSD(), new Rectangle(x + offset, y + offset, size, size));
-                e.Graphics.InterpolationMode = oldInterpolation;
-            }
+            DrawPageTextBadge(e.Graphics, e.Item, x, y, width, height);
 
             // Draw the text below the image
             var drawBrush = new SolidBrush(_behavior.ColorScheme.ForegroundColor.ToSD());
@@ -184,8 +173,9 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
             var x = e.Bounds.Left + (e.Bounds.Width - width) / 2;
             var y = e.Bounds.Top + (e.Bounds.Height - height) / 2;
 
-            // Draw image
+            // Draw image and OCR badge using the same rendering path as numbered pages.
             e.Graphics.DrawImage(image, new Rectangle(x, y, width, height));
+            DrawPageTextBadge(e.Graphics, e.Item, x, y, width, height);
 
             // Draw border
             if (e.Item.Selected)
@@ -198,6 +188,28 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
             }
         }
     }
+
+    private void DrawPageTextBadge(Graphics graphics, ListViewItem item, int x, int y, int width, int height)
+    {
+        if (_behavior is not ImageListViewBehavior imageBehavior ||
+            item.Tag is not UiImage uiImage ||
+            imageBehavior.GetBadgeFor(uiImage) is not { } badge)
+        {
+            return;
+        }
+        int size = Math.Clamp((int) Math.Round(Math.Min(width, height) * 0.13),
+            (int) Math.Round(11 * _dpiScale), (int) Math.Round(26 * _dpiScale));
+        size = Math.Min(size, Math.Min(width, height));
+        if (size <= 0) return;
+        int offset = Math.Max(1, (int) Math.Round(Math.Min(width, height) * 0.015));
+        var oldInterpolation = graphics.InterpolationMode;
+        graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+        graphics.DrawImage(badge.ToSD(), new Rectangle(x + offset, y + offset, size, size));
+        graphics.InterpolationMode = oldInterpolation;
+    }
+
+    /// <summary>Repaint badges without regenerating thumbnails or reparsing PDFs.</summary>
+    public void RefreshBadges() => _view.Invalidate();
 
     public Eto.Drawing.Size ImageSize
     {

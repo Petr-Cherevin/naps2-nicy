@@ -261,7 +261,10 @@ public class ScrollZoomImageViewer
                 {
                     rectangles.Add(active);
                 }
-                DrawCombinedOutline(e.Graphics, rectangles);
+                // A single one-pixel screen-space outline, with no thick overlapping joints.
+                var selectedColor = _selectionRects.Count > 0 ? _selectionRects[^1].Color : SelectionRectColor;
+                DrawCombinedOutline(e.Graphics, rectangles,
+                    selectedColor == Colors.Black ? Colors.White : Colors.Black);
             }
         }
     }
@@ -279,48 +282,42 @@ public class ScrollZoomImageViewer
         graphics.DrawRectangle(Colors.Black, x - 1, y - 1, w + 2, h + 2);
     }
 
-    private void DrawCombinedOutline(Graphics graphics, List<RectangleF> rectangles)
+    private void DrawCombinedOutline(Graphics graphics, List<RectangleF> rectangles, Color outlineColor)
     {
         if (rectangles.Count == 0) return;
         var xs = rectangles.SelectMany(r => new[] { r.Left, r.Right }).Distinct().OrderBy(x => x).ToArray();
         var ys = rectangles.SelectMany(r => new[] { r.Top, r.Bottom }).Distinct().OrderBy(y => y).ToArray();
         if (xs.Length < 2 || ys.Length < 2) return;
 
-        // For each grid segment, draw a border only when exactly one side is covered.
-        // The geometry is the union of the filled selection rectangles, not their bounding box.
-        bool Inside(float x, float y) => rectangles.Any(r => x > r.Left && x < r.Right && y > r.Top && y < r.Bottom);
+        bool Inside(float x, float y) =>
+            rectangles.Any(r => x > r.Left && x < r.Right && y > r.Top && y < r.Bottom);
         float sx = RenderSize.Width / (float) Image!.Width;
         float sy = RenderSize.Height / (float) Image.Height;
-        // A black outer edge with a white center is visible over both black and white redactions.
-        const float outerThickness = 4f;
-        const float innerThickness = 1f;
+        int ScreenX(float x) => (int) Math.Round(XOffset + x * sx);
+        int ScreenY(float y) => (int) Math.Round(YOffset + y * sy);
 
+        // Rasterize each exposed union segment to one pixel. Include both endpoints so
+        // neighboring horizontal and vertical segments meet exactly at every corner.
         for (int i = 0; i < xs.Length; i++)
         {
-            float x = xs[i];
             for (int j = 0; j + 1 < ys.Length; j++)
             {
-                float midY = (ys[j] + ys[j + 1]) / 2;
-                if (Inside(x - 0.01f, midY) == Inside(x + 0.01f, midY)) continue;
-                var screenX = XOffset + x * sx;
-                var screenY = YOffset + ys[j] * sy;
-                var height = Math.Max(1, (ys[j + 1] - ys[j]) * sy);
-                graphics.FillRectangle(Colors.Black, screenX - outerThickness / 2, screenY, outerThickness, height);
-                graphics.FillRectangle(Colors.White, screenX - innerThickness / 2, screenY, innerThickness, height);
+                float mid = (ys[j] + ys[j + 1]) / 2;
+                if (Inside(xs[i] - 0.01f, mid) == Inside(xs[i] + 0.01f, mid)) continue;
+                int top = ScreenY(ys[j]);
+                graphics.FillRectangle(outlineColor, ScreenX(xs[i]), top, 1,
+                    Math.Max(1, ScreenY(ys[j + 1]) - top + 1));
             }
         }
         for (int j = 0; j < ys.Length; j++)
         {
-            float y = ys[j];
             for (int i = 0; i + 1 < xs.Length; i++)
             {
-                float midX = (xs[i] + xs[i + 1]) / 2;
-                if (Inside(midX, y - 0.01f) == Inside(midX, y + 0.01f)) continue;
-                var screenX = XOffset + xs[i] * sx;
-                var screenY = YOffset + y * sy;
-                var width = Math.Max(1, (xs[i + 1] - xs[i]) * sx);
-                graphics.FillRectangle(Colors.Black, screenX, screenY - outerThickness / 2, width, outerThickness);
-                graphics.FillRectangle(Colors.White, screenX, screenY - innerThickness / 2, width, innerThickness);
+                float mid = (xs[i] + xs[i + 1]) / 2;
+                if (Inside(mid, ys[j] - 0.01f) == Inside(mid, ys[j] + 0.01f)) continue;
+                int left = ScreenX(xs[i]);
+                graphics.FillRectangle(outlineColor, left, ScreenY(ys[j]),
+                    Math.Max(1, ScreenX(xs[i + 1]) - left + 1), 1);
             }
         }
     }
