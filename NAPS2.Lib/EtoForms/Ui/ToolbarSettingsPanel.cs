@@ -204,6 +204,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
     private static string GetPreviewItemLabel(string id) => id switch
     {
         PreviewToolbarLayout.PageNumber => UiStrings.PageNumber,
+        PreviewToolbarLayout.TextStatus => OcrActionText.TextStatus,
         PreviewToolbarLayout.Previous => UiStrings.Previous,
         PreviewToolbarLayout.Next => UiStrings.Next,
         PreviewToolbarLayout.ZoomWindow => UiStrings.ScaleWithWindow,
@@ -256,6 +257,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
         PreviewToolbarLayout.RedactUndo => "undo",
         PreviewToolbarLayout.RedactApply => "accept",
         PreviewToolbarLayout.ShowText => "text",
+        PreviewToolbarLayout.TextStatus => "text",
         PreviewToolbarLayout.CopyText => "copy",
         PreviewToolbarLayout.ClearText => "text_clear",
         PreviewToolbarLayout.Split => "split",

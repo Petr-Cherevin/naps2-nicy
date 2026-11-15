@@ -6,6 +6,7 @@ namespace NAPS2.EtoForms.Ui;
 public static class OcrActionText
 {
     private static bool Ru => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ru";
+    public static string TextStatus => Ru ? "Статус текста страницы" : "Page text status";
     public static string RecognizeSelectedAgain => Ru ? "Распознать заново выделенные" : "Recognize selected again";
     public static string RecognizePageAgain => Ru ? "Распознать страницу заново" : "Recognize page again";
     public static string ConfigureAndRecognize => Ru ? "Настроить и распознать заново..." : "Configure and recognize again...";
