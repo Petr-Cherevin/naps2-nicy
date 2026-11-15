@@ -105,7 +105,9 @@ internal static class TaskbarForensics
             Snapshot(form, "hooks-installed");
         }
 
-        form.Load += (_, _) => InstallHooks();
+        // Attach before the HWND is created. Installing only at Load misses the
+        // initial CREATE/SHOW messages that are central to this taskbar bug.
+        InstallHooks();
 
         int tick = 0;
         var sampling = new System.Windows.Forms.Timer { Interval = 250 };
@@ -180,6 +182,7 @@ internal static class TaskbarForensics
                 $"stage={stage} hwnd={Hex(hwnd)} class={cls} " +
                 $"pid={ownPid} foreground={Hex(foreground)} foregroundPid={foregroundPid} " +
                 $"taskbar={Hex(shell)} taskbarPid={shellPid} " +
+                $"os={Environment.OSVersion.Version} is64bit={Environment.Is64BitProcess} " +
                 $"owner={Hex(GetWindow(hwnd, 4))} parent={Hex(GetParent(hwnd))} " +
                 $"root={Hex(GetAncestor(hwnd, 2))} rootOwner={Hex(GetAncestor(hwnd, 3))} " +
                 $"style=0x{GetWindowLong(hwnd, -16):X} exStyle=0x{GetWindowLong(hwnd, -20):X} " +
