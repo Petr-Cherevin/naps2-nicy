@@ -41,6 +41,9 @@ public class DesktopController
     private readonly RecoveryManager _recoveryManager;
     private readonly EditWithController _editWithController;
     private readonly ImageTransfer _imageTransfer = new();
+    private int _activeFileImports;
+    public bool IsImportActive => Volatile.Read(ref _activeFileImports) > 0;
+    public event EventHandler? ImportActivityChanged;
 
     private bool _closed;
     private bool _preInitialized;
@@ -354,6 +357,8 @@ public class DesktopController
     {
         DiagnosticLog.Write("Import", $"Start method={(fromDrop ? "drop" : background ? "background" : "menu")} fileCount={files.Count}");
         var op = _operationFactory.Create<ImportOperation>();
+        Interlocked.Increment(ref _activeFileImports);
+        ImportActivityChanged?.Invoke(this, EventArgs.Empty);
         op.StatusChanged += (_, _) =>
         {
             var status = op.Status;
@@ -362,7 +367,12 @@ public class DesktopController
                 DiagnosticLog.Write("ImportProgress", $"current={status.CurrentProgress} max={status.MaxProgress}");
             }
         };
-        op.Finished += (_, _) => DiagnosticLog.Write("Import", $"Finished method={(fromDrop ? "drop" : "other")}");
+        op.Finished += (_, _) =>
+        {
+            DiagnosticLog.Write("Import", $"Finished method={(fromDrop ? "drop" : "other")}");
+            Interlocked.Decrement(ref _activeFileImports);
+            ImportActivityChanged?.Invoke(this, EventArgs.Empty);
+        };
         if (op.Start(OrderFiles(files), WithAutoRecognize(_desktopImagesController.ReceiveScannedImage(), op),
                 new ImportParams { ThumbnailSize = _thumbnailController.RenderSize }))
         {
@@ -447,6 +457,13 @@ public class DesktopController
         {
             Recognize(_imageList.Images);
         }
+    }
+
+    /// <summary>Runs new OCR for selected pages regardless of existing PDF or OCR text.</summary>
+    public void RecognizeSelectedAgain()
+    {
+        var selected = _imageList.Selection.ToList();
+        if (selected.Count > 0) Recognize(selected, force: true);
     }
 
     /// <summary>
@@ -550,7 +567,7 @@ public class DesktopController
         MessageBox.Show(_desktopFormProvider.DesktopForm, message, UiStrings.Recognize, MessageBoxButtons.YesNo,
             MessageBoxType.Question) == DialogResult.Yes;
 
-    private void Recognize(ICollection<UiImage> images)
+    private void Recognize(ICollection<UiImage> images, bool force = false)
     {
         // Pages with real text are never run through OCR. Scans that have already been through OCR elsewhere (so they
         // have hidden text) are only run through OCR again if the user confirms.
@@ -559,6 +576,11 @@ public class DesktopController
         foreach (var uiImage in images)
         {
             using var image = uiImage.GetClonedImage();
+            if (force)
+            {
+                imagesToRecognize.Add(uiImage);
+                continue;
+            }
             switch (ExistingText.GetKind(image))
             {
                 case ExistingTextKind.None:
@@ -579,7 +601,7 @@ public class DesktopController
             return;
         }
         var op = _operationFactory.Create<RecognizeOperation>();
-        if (op.Start(imagesToRecognize, _config.ManualOcrParams(), OcrPriority.Foreground))
+        if (op.Start(imagesToRecognize, _config.ManualOcrParams(), OcrPriority.Foreground, force))
         {
             _operationProgress.ShowProgress(op);
         }

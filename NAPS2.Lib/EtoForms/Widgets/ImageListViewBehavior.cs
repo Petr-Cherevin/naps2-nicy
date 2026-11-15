@@ -1,5 +1,6 @@
 using Eto.Drawing;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Runtime.CompilerServices;
 using Eto.Forms;
 using Google.Protobuf;
@@ -20,6 +21,16 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private ConditionalWeakTable<UiImage, BadgeCacheState> _statusCache = new();
     private readonly ConcurrentQueue<(UiImage Image, BadgeCacheState Entry, object State, string? Language)> _pending = new();
     private int _workerRunning;
+    private int _importActive;
+
+    public void SetImportActive(bool active)
+    {
+        Interlocked.Exchange(ref _importActive, active ? 1 : 0);
+        if (!active)
+        {
+            BadgesChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     private sealed class BadgeCacheState
     {
@@ -123,6 +134,10 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
             if (entry.Status is { } status)
             {
                 return GetBadge(status);
+            }
+            if (Volatile.Read(ref _importActive) > 0)
+            {
+                return null;
             }
             if (!entry.Pending)
             {

@@ -113,6 +113,8 @@ public abstract class DesktopForm : EtoFormBase
         _listView = EtoPlatform.Current.CreateListView(imageListViewBehavior);
         // The thumbnails have badges that depend on OCR results, which can complete in bulk, so we batch the updates
         imageListViewBehavior.BadgesChanged += (_, _) => QueueBadgeRefresh();
+        _desktopController.ImportActivityChanged += (_, _) =>
+            imageListViewBehavior.SetImportActive(_desktopController.IsImportActive);
         _listView.Selection = ImageList.Selection;
         _listView.ItemClicked += ListViewItemClicked;
         _listView.Drop += ListViewDrop;
@@ -803,7 +805,9 @@ public abstract class DesktopForm : EtoFormBase
         }
         else if (args.FilePaths != null)
         {
-            _desktopController.ImportFiles(args.FilePaths);
+            // Leave the native Windows Drop event before showing a modal import progress dialog.
+            var files = args.FilePaths;
+            Invoker.Current.InvokeDispatch(() => _desktopController.ImportFiles(files, fromDrop: true));
         }
     }
 

@@ -68,7 +68,7 @@ internal static class WindowStartupDiagnostics
         // Sample after the form first appears even if it is covered by another application.
         // This distinguishes a window missing from the taskbar from one that has lost focus.
         var ticks = 0;
-        var timer = new Timer { Interval = 500 };
+        var timer = new System.Windows.Forms.Timer { Interval = 500 };
         timer.Tick += (_, _) =>
         {
             Record($"sample-{++ticks}");
