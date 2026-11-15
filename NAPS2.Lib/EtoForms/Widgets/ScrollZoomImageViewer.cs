@@ -291,7 +291,9 @@ public class ScrollZoomImageViewer
         bool Inside(float x, float y) => rectangles.Any(r => x > r.Left && x < r.Right && y > r.Top && y < r.Bottom);
         float sx = RenderSize.Width / (float) Image!.Width;
         float sy = RenderSize.Height / (float) Image.Height;
-        const float thickness = 2f;
+        // A black outer edge with a white center is visible over both black and white redactions.
+        const float outerThickness = 4f;
+        const float innerThickness = 1f;
 
         for (int i = 0; i < xs.Length; i++)
         {
@@ -300,8 +302,11 @@ public class ScrollZoomImageViewer
             {
                 float midY = (ys[j] + ys[j + 1]) / 2;
                 if (Inside(x - 0.01f, midY) == Inside(x + 0.01f, midY)) continue;
-                graphics.FillRectangle(Colors.White, XOffset + x * sx - thickness / 2,
-                    YOffset + ys[j] * sy, thickness, Math.Max(1, (ys[j + 1] - ys[j]) * sy));
+                var screenX = XOffset + x * sx;
+                var screenY = YOffset + ys[j] * sy;
+                var height = Math.Max(1, (ys[j + 1] - ys[j]) * sy);
+                graphics.FillRectangle(Colors.Black, screenX - outerThickness / 2, screenY, outerThickness, height);
+                graphics.FillRectangle(Colors.White, screenX - innerThickness / 2, screenY, innerThickness, height);
             }
         }
         for (int j = 0; j < ys.Length; j++)
@@ -311,8 +316,11 @@ public class ScrollZoomImageViewer
             {
                 float midX = (xs[i] + xs[i + 1]) / 2;
                 if (Inside(midX, y - 0.01f) == Inside(midX, y + 0.01f)) continue;
-                graphics.FillRectangle(Colors.White, XOffset + xs[i] * sx,
-                    YOffset + y * sy - thickness / 2, Math.Max(1, (xs[i + 1] - xs[i]) * sx), thickness);
+                var screenX = XOffset + xs[i] * sx;
+                var screenY = YOffset + y * sy;
+                var width = Math.Max(1, (xs[i + 1] - xs[i]) * sx);
+                graphics.FillRectangle(Colors.Black, screenX, screenY - outerThickness / 2, width, outerThickness);
+                graphics.FillRectangle(Colors.White, screenX, screenY - innerThickness / 2, width, innerThickness);
             }
         }
     }

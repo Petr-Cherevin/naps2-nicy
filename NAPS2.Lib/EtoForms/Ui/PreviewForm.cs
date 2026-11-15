@@ -301,7 +301,6 @@ public class PreviewForm : EtoDialogBase
             [PreviewToolbarLayout.Split] = MakeToolButton(Commands.Split),
             [PreviewToolbarLayout.Combine] = MakeToolButton(Commands.Combine),
             [PreviewToolbarLayout.EditWithApp] = _editWithAppButton,
-            [PreviewToolbarLayout.EditWithPick] = MakeToolButton(Commands.EditWithPick),
             [PreviewToolbarLayout.Delete] = MakeToolButton(DeleteCurrentImageCommand)
         };
         if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SavePdf))
@@ -598,6 +597,7 @@ public class PreviewForm : EtoDialogBase
                 MessageBox.Show(this, UiStrings.NoTextFound, UiStrings.ShowText, MessageBoxType.Information);
                 return null;
             }
+            _pageTextProvider.NotifyStatusChanged();
             return text;
         }
         catch (Exception ex)

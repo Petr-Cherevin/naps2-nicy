@@ -15,11 +15,11 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private readonly Dictionary<PageTextStatus, Bitmap> _badges = new();
 
     // Badge size and distance from the top-left corner, as fractions of the thumbnail size
-    private const float BadgeSizeFraction = 0.16f;
+    private const float BadgeSizeFraction = 0.13f;
     private const float BadgeOffsetFraction = 0.015f;
     // Limits on the badge size, in pixels at 100% display scaling
-    private const float BadgeMinSize = 14;
-    private const float BadgeMaxSize = 32;
+    private const float BadgeMinSize = 11;
+    private const float BadgeMaxSize = 26;
 
     public ImageListViewBehavior(UiThumbnailProvider thumbnailProvider,
         ColorScheme colorScheme, Naps2Config config, PageTextStatusProvider pageTextStatusProvider) : base(colorScheme)
@@ -45,7 +45,11 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     {
         using var thumbnail = _thumbnailProvider.GetThumbnail(item, listView.ImageSize.Width);
         var image = thumbnail.ToEtoImage();
-        DrawTextBadge(image, item, listView.ImageSize.Width, listView.Control);
+        // On WinForms with page numbers the thumbnail is resized; draw the badge after resizing instead.
+        if (!EtoPlatform.Current.IsWinForms || !ShowPageNumbers)
+        {
+            DrawTextBadge(image, item, listView.ImageSize.Width, listView.Control);
+        }
         return image;
     }
 
@@ -78,6 +82,8 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
             Log.ErrorException("Error drawing page text badge", ex);
         }
     }
+
+    public Bitmap? GetBadgeFor(UiImage item) => GetBadge(_pageTextStatusProvider.GetStatus(item));
 
     private Bitmap? GetBadge(PageTextStatus status)
     {

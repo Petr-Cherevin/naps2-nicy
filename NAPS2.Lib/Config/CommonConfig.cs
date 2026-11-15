@@ -160,6 +160,19 @@ public class CommonConfig
     [Common]
     public string? LastOcrMultiLangCode { get; set; }
 
+    // Keep language choices independent across the three OCR settings tabs.
+    [User]
+    public string? OcrSingleLanguageCode { get; set; }
+
+    [User]
+    public string? OcrFavoriteLanguageCode { get; set; }
+
+    [User]
+    public string? OcrCustomLanguageCode { get; set; }
+
+    [User]
+    public int OcrLanguageTab { get; set; }
+
     [Common]
     public LocalizedOcrMode OcrMode { get; set; }
 

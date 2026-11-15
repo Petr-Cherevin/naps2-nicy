@@ -295,7 +295,15 @@ public class WinFormsEtoPlatform : EtoPlatform
 
         form.DpiChanged += (_, _) => (window as IFormBase)?.LayoutController.Invalidate();
 
-        // Hide the window until it's fully laid out and painted, as WinForms shows it first (and maximizes it after)
+        // DWM-cloaking the main window can leave its taskbar entry absent when the user changes focus.
+        // Keep the main window known to Windows throughout startup, without stealing foreground focus.
+        if (window is NAPS2.EtoForms.Ui.DesktopForm)
+        {
+            form.ShowInTaskbar = true;
+            return;
+        }
+
+        // Hide dialogs until they are laid out and painted, as WinForms shows them early
         bool shown = false;
         form.HandleCreated += (_, _) =>
         {

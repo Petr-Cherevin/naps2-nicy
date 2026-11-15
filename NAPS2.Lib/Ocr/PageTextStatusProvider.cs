@@ -40,8 +40,7 @@ public enum PageTextStatus
 /// </summary>
 public class PageTextStatusProvider
 {
-    private readonly ScanningContext _scanningContext;
-    private readonly Naps2Config _config;
+    private readonly PageTextProvider _pageTextProvider;
     // Remembers which images have had OCR results at some point, so we can tell if the results were lost. This is
     // shared as it's a property of the image, not of whatever is asking about it.
     private static readonly ConditionalWeakTable<UiImage, object> _hadOcrResult = new();
@@ -70,9 +69,8 @@ public class PageTextStatusProvider
 
     public PageTextStatusProvider(ScanningContext scanningContext, Naps2Config config)
     {
-        _scanningContext = scanningContext;
-        _config = config;
-        _scanningContext.OcrRequestQueue.ResultsChanged += (_, _) => StatusChanged?.Invoke(this, EventArgs.Empty);
+        _pageTextProvider = new PageTextProvider(scanningContext, config);
+        scanningContext.OcrRequestQueue.ResultsChanged += (_, _) => StatusChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -85,7 +83,9 @@ public class PageTextStatusProvider
         try
         {
             using var image = uiImage.GetClonedImage();
-            if (HasOcrResult(image))
+            // Match Preview > Show Text: its source detection can find PDF text absent from the old badge path.
+            var textSource = _pageTextProvider.GetSource(image);
+            if (textSource == PageTextSource.Ocr)
             {
                 lock (_hadOcrResult)
                 {
@@ -101,14 +101,13 @@ public class PageTextStatusProvider
                 // The user has explicitly cleared the text, so the page is now just a page without text
                 return PageTextStatus.None;
             }
-            var originalKind = ExistingText.GetOriginalKind(image);
-            if (originalKind != ExistingTextKind.None)
+            if (textSource is PageTextSource.PdfChanged or PageTextSource.PdfRedacted)
             {
-                if (!image.TransformState.IsEmpty)
-                {
-                    return PageTextStatus.Lost;
-                }
-                return originalKind == ExistingTextKind.Visible
+                return PageTextStatus.Lost;
+            }
+            if (textSource == PageTextSource.Pdf)
+            {
+                return ExistingText.GetOriginalKind(image) == ExistingTextKind.Visible
                     ? PageTextStatus.OriginalText
                     : PageTextStatus.RecognizedElsewhere;
             }
@@ -124,14 +123,4 @@ public class PageTextStatusProvider
         }
     }
 
-    private bool HasOcrResult(ProcessedImage image)
-    {
-        var ocrEngine = _scanningContext.OcrEngine;
-        var ocrParams = _config.ManualOcrParams();
-        if (ocrEngine == null || string.IsNullOrEmpty(ocrParams.LanguageCode))
-        {
-            return false;
-        }
-        return _scanningContext.OcrRequestQueue.GetCachedResult(ocrEngine, image, ocrParams) != null;
-    }
 }

@@ -55,7 +55,7 @@ public static class PreviewToolbarLayout
         "sep3",
         ShowText, CopyText, ClearText,
         "sep4",
-        Split, Combine, EditWithApp, EditWithPick,
+        Split, Combine, EditWithApp,
         "sep5",
         SavePdf, SaveImages,
         "sep6",

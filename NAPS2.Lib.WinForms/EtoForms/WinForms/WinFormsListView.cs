@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using Eto.WinForms;
 using Eto.WinForms.Forms.Menu;
 using NAPS2.EtoForms.Widgets;
+using NAPS2.Images;
 using NAPS2.WinForms;
 using ContextMenu = Eto.Forms.ContextMenu;
 
@@ -135,8 +136,20 @@ public class WinFormsListView<T> : IListView<T> where T : notnull
                 e.Graphics.FillRectangle(PageNumberSelectionBrush, selectionRect);
             }
 
-            // Draw image
+            // Render the OCR badge at screen resolution, after the thumbnail has been scaled.
             e.Graphics.DrawImage(image, new Rectangle(x, y, width, height));
+            if (_behavior is ImageListViewBehavior imageBehavior && e.Item.Tag is UiImage uiImage &&
+                imageBehavior.GetBadgeFor(uiImage) is { } badge)
+            {
+                int size = Math.Clamp((int) Math.Round(Math.Min(width, height) * 0.13),
+                    (int) Math.Round(11 * _dpiScale), (int) Math.Round(26 * _dpiScale));
+                size = Math.Min(size, Math.Min(width, height));
+                int offset = Math.Max(1, (int) Math.Round(Math.Min(width, height) * 0.015));
+                var oldInterpolation = e.Graphics.InterpolationMode;
+                e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                e.Graphics.DrawImage(badge.ToSD(), new Rectangle(x + offset, y + offset, size, size));
+                e.Graphics.InterpolationMode = oldInterpolation;
+            }
 
             // Draw the text below the image
             var drawBrush = new SolidBrush(_behavior.ColorScheme.ForegroundColor.ToSD());
