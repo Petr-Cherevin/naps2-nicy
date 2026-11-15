@@ -29,7 +29,8 @@ public class OcrSetupForm : EtoDialogBase
     private readonly DropDown _singleLanguage = C.DropDown();
     private readonly IListView<Language> _customLanguages;
     private readonly IListView<Language> _favoriteLanguages;
-    private readonly Label _favoriteSummary = new() { Wrap = WrapMode.Word };
+    // A changing selection must not resize this row or move the language list.
+    private readonly Label _favoriteSummary = new() { Wrap = WrapMode.None, Height = 26 };
     private readonly Button _saveFavorite = C.Button(OcrSetupText.SaveAsFavorite);
     private readonly EnumDropDownWidget<LocalizedOcrMode> _ocrMode = new()
         { Items = [LocalizedOcrMode.Fast, LocalizedOcrMode.Best] };
@@ -50,6 +51,7 @@ public class OcrSetupForm : EtoDialogBase
         _tesseractLanguageManager = tesseractLanguageManager;
         _customLanguages = EtoPlatform.Current.CreateListView(ocrLanguagesListViewBehavior);
         _favoriteLanguages = EtoPlatform.Current.CreateListView(ocrLanguagesListViewBehavior);
+        EtoPlatform.Current.ConfigureEllipsis(_favoriteSummary);
 
         _originalCode = Config.Get(c => c.OcrLanguageCode) ?? "";
         _favoriteCode = Config.Get(c => c.OcrFavoriteLanguageCode) ??
@@ -159,7 +161,9 @@ public class OcrSetupForm : EtoDialogBase
             C.Label(OcrSetupText.ModePrompt),
             L.Row(_modeButtons[0].Scale(), _modeButtons[1].Scale(), _modeButtons[2].Scale()).Spacing(0),
             _modeHint,
-            _modeContent.NaturalSize(490, 270).Scale(),
+            // Fixed height keeps OCR options and OK/Cancel in place when language
+            // selections, descriptions or pages change.
+            _modeContent.NaturalSize(490, 270).Height(270),
             L.Row(
                 C.Label(UiStrings.OcrModeLabel).AlignCenter().Padding(right: 40),
                 _ocrMode.AsControl().Scale()
@@ -226,10 +230,12 @@ public class OcrSetupForm : EtoDialogBase
     private void UpdateFavoriteSummary()
     {
         var codes = _favoriteCode.Split('+', StringSplitOptions.RemoveEmptyEntries);
-        _favoriteSummary.Text = codes.Length == 0
+        string summary = codes.Length == 0
             ? OcrSetupText.NoFavorite
             : string.Join(" + ", codes.Select(code =>
                 _installed.FirstOrDefault(lang => lang.Code == code)?.Name ?? code));
+        _favoriteSummary.Text = summary;
+        _favoriteSummary.ToolTip = summary;
     }
 
     private void UpdateView()

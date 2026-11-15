@@ -59,7 +59,7 @@ class Program
             string folder = Path.Combine(root, "Diagnostics");
             Directory.CreateDirectory(folder);
             // Include UTC day to avoid growing a single file indefinitely.
-            string filename = "ChatGPT-0007-launcher-" +
+            string filename = "ChatGPT-0008-launcher-" +
                 DateTime.UtcNow.ToString("yyyyMMdd") + "-" +
                 Process.GetCurrentProcess().Id + ".log";
             File.AppendAllText(Path.Combine(folder, filename),

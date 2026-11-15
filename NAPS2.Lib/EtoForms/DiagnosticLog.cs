@@ -5,7 +5,7 @@ using System.Text;
 namespace NAPS2.EtoForms;
 
 /// <summary>
-/// Detailed diagnostics for ChatGPT-0007. Document paths, page images, and OCR text
+/// Detailed diagnostics for ChatGPT-0008. Document paths, page images, and OCR text
 /// are never logged. The portable application directory is preferred.
 /// </summary>
 public static class DiagnosticLog
@@ -19,7 +19,7 @@ public static class DiagnosticLog
     private static int _part;
     private static string? _folder;
     private static readonly string SessionName =
-        $"ChatGPT-0007-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Environment.ProcessId}";
+        $"ChatGPT-0008-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Environment.ProcessId}";
 
     public static string? PathToLog { get; private set; }
 
@@ -65,11 +65,11 @@ public static class DiagnosticLog
         {
             AutoFlush = true
         };
-        _writer.WriteLine("ChatGPT-0007 diagnostics (UTC); no document names, paths, images, or OCR text.");
+        _writer.WriteLine("ChatGPT-0008 diagnostics (UTC); no document names, paths, images, or OCR text.");
         _writer.WriteLine($"Storage={_storage}; pid={Environment.ProcessId}");
         try
         {
-            foreach (var old in Directory.EnumerateFiles(_folder, "ChatGPT-0007-*.log")
+            foreach (var old in Directory.EnumerateFiles(_folder, "ChatGPT-0008-*.log")
                          .OrderByDescending(File.GetCreationTimeUtc).Skip(MaxLogFiles))
             {
                 if (!string.Equals(old, PathToLog, StringComparison.OrdinalIgnoreCase))

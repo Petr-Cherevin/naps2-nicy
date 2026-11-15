@@ -327,6 +327,8 @@ public class WinFormsEtoPlatform : EtoPlatform
         if (window is NAPS2.EtoForms.Ui.DesktopForm)
         {
             form.ShowInTaskbar = true;
+            if (TaskbarStartupTest.Mode == TaskbarStartupMode.Shell)
+                TaskbarShellExperiment.Attach(form);
             return;
         }
 

@@ -20,6 +20,7 @@ static class Program
         NAPS2.EtoForms.DiagnosticLog.Write("EntryPoint",
             $"pid={Environment.ProcessId} is64bit={Environment.Is64BitProcess} " +
             $"osVersion={Environment.OSVersion.Version} argc={args.Length}");
+        NAPS2.EtoForms.WinForms.TaskbarStartupInfoDiagnostics.Log();
         WinFormsEntryPoint.Run(args);
     }
 }

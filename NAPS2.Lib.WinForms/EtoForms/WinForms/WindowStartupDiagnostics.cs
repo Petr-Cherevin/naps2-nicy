@@ -73,7 +73,7 @@ internal static class WindowStartupDiagnostics
             }
         }
 
-        DiagnosticLog.Write("Startup", "begin version=0007 activation=disabled forensic=enabled");
+        DiagnosticLog.Write("Startup", "begin version=0008 activation=disabled forensic=enabled");
         Record("attach");
         form.HandleCreated += (_, _) => Record("HandleCreated");
         form.HandleDestroyed += (_, _) => Record("HandleDestroyed");
