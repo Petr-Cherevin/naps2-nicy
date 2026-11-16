@@ -84,8 +84,13 @@ public class OcrSetupForm : EtoDialogBase
         _customCode = Config.Get(c => c.OcrCustomLanguageCode) ??
                       (_originalCode.Contains('+') ? _originalCode : _favoriteCode);
 
-        var mode = Config.Get(c => c.OcrMode);
-        _ocrMode.SelectedItem = mode == LocalizedOcrMode.Legacy ? LocalizedOcrMode.Fast : mode;
+        // Use Best only until the user has saved an OCR mode. An explicit user
+        // choice (and an administrator lock) always takes precedence.
+        bool configuredMode = Config.User.Has(c => c.OcrMode) ||
+                              Config.Run.Has(c => c.OcrMode) ||
+                              Config.AppLocked.Has(c => c.OcrMode);
+        var mode = configuredMode ? Config.Get(c => c.OcrMode) : LocalizedOcrMode.Best;
+        _ocrMode.SelectedItem = mode == LocalizedOcrMode.Legacy ? LocalizedOcrMode.Best : mode;
         _ocrPreProcessing.Checked = Config.Get(c => c.OcrPreProcessing);
 
         _moreLanguages.Click += MoreLanguages_Click;
@@ -168,12 +173,19 @@ public class OcrSetupForm : EtoDialogBase
 
     private Control MakeFavoritePage()
     {
-        var layout = new DynamicLayout { Padding = new Padding(12), Spacing = new Size(8, 8) };
-        layout.AddRow(C.Label(OcrSetupText.FavoriteDescription));
-        layout.AddRow(_favoriteSummaryArea);
-        // Editing the saved set does NOT switch to the Custom mode.
-        layout.Add(_favoriteLanguages.Control, yscale: true);
-        return layout;
+        // DynamicLayout redistributes the height of earlier rows when the
+        // summary changes from empty to populated. Keep fixed header + two
+        // summary lines, and give only the language list flexible height.
+        var heading = C.NoWrap(OcrSetupText.FavoriteDescription);
+        heading.Height = 26;
+        return new TableLayout(
+            new TableRow(new TableCell(heading, true)),
+            new TableRow(new TableCell(_favoriteSummaryArea, true)),
+            TableRow.Scaled(new TableCell(_favoriteLanguages.Control, true)))
+        {
+            Padding = new Padding(12),
+            Spacing = new Size(8, 8)
+        };
     }
 
     private Control MakeCustomPage()

@@ -38,7 +38,7 @@
   <OcrTimeoutInSeconds>600</OcrTimeoutInSeconds>
   <OcrState>UserConfig</OcrState>
   <OcrDefaultLanguage></OcrDefaultLanguage>
-  <OcrDefaultMode>Fast</OcrDefaultMode>
+  <OcrDefaultMode>Best</OcrDefaultMode>
   <OcrDefaultAfterScanning>true</OcrDefaultAfterScanning>
   <ForcePdfCompat>Default</ForcePdfCompat>
   <EsclSecurityPolicy>None</EsclSecurityPolicy>

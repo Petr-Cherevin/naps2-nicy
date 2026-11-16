@@ -1,8 +1,8 @@
-name: NAPS2 Nicy-0010 Windows installer
+name: NAPS2 Nicy-0011 Windows installer
 
 on:
   push:
-    branches: [chatgpt-0010-installer]
+    branches: [chatgpt-0011]
   workflow_dispatch:
 
 permissions:
@@ -31,17 +31,17 @@ jobs:
           if (-not (Test-Path -LiteralPath $iscc)) { throw "ISCC.exe missing at $iscc" }
           & $iscc /?
       - name: Package Windows x64 EXE installer
-        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0010 --nosign -v
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0011 --nosign -v
       - name: Rename installer and verify build
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0010.exe' -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0011.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'No Nicy installer found' }
-          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0010-Setup-win-x64.exe'
-          Get-Item -LiteralPath (Join-Path $exe.DirectoryName 'NAPS2-Nicy-0010-Setup-win-x64.exe') | Select-Object Name, Length
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0011-Setup-win-x64.exe'
+          Get-Item -LiteralPath (Join-Path $exe.DirectoryName 'NAPS2-Nicy-0011-Setup-win-x64.exe') | Select-Object Name, Length
       - name: Upload unsigned installer
         uses: actions/upload-artifact@v6
         with:
-          name: NAPS2-Nicy-0010-Setup-win-x64-unsigned
-          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0010-Setup-win-x64.exe
+          name: NAPS2-Nicy-0011-Setup-win-x64-unsigned
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0011-Setup-win-x64.exe
           if-no-files-found: error

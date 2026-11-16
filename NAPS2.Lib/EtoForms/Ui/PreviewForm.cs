@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Eto.Drawing;
 using Eto.Forms;
 using NAPS2.EtoForms.Desktop;
@@ -239,6 +240,9 @@ public class PreviewForm : EtoDialogBase
 
     private void ImageThumbnailInvalidated(object? sender, EventArgs e)
     {
+        // Keep unfinished redaction rectangles in place even when a background
+        // thumbnail refresh invalidates the current image.
+        if (HasPendingRedaction) return;
         Invoker.Current.InvokeDispatch(() => UpdateImage().AssertNoAwait());
     }
 
@@ -290,20 +294,20 @@ public class PreviewForm : EtoDialogBase
                 ToolTip = UiStrings.Rotate,
                 Items =
                 {
-                    Commands.RotateLeft,
-                    Commands.RotateRight,
-                    Commands.Flip,
-                    Commands.Deskew,
-                    Commands.CustomRotate
+                    GuardRedaction(Commands.RotateLeft),
+                    GuardRedaction(Commands.RotateRight),
+                    GuardRedaction(Commands.Flip),
+                    GuardRedaction(Commands.Deskew),
+                    GuardRedaction(Commands.CustomRotate)
                 }
             }, "arrow_rotate_anticlockwise"),
-            [PreviewToolbarLayout.Crop] = MakeToolButton(Commands.Crop),
-            [PreviewToolbarLayout.BrightCont] = MakeToolButton(Commands.BrightCont),
-            [PreviewToolbarLayout.HueSat] = MakeToolButton(Commands.HueSat),
-            [PreviewToolbarLayout.BlackWhite] = MakeToolButton(Commands.BlackWhite),
-            [PreviewToolbarLayout.Sharpen] = MakeToolButton(Commands.Sharpen),
-            [PreviewToolbarLayout.DocumentCorrection] = MakeToolButton(Commands.DocumentCorrection),
-            [PreviewToolbarLayout.Compress] = MakeToolButton(Commands.Compress),
+            [PreviewToolbarLayout.Crop] = MakeToolButton(GuardRedaction(Commands.Crop)),
+            [PreviewToolbarLayout.BrightCont] = MakeToolButton(GuardRedaction(Commands.BrightCont)),
+            [PreviewToolbarLayout.HueSat] = MakeToolButton(GuardRedaction(Commands.HueSat)),
+            [PreviewToolbarLayout.BlackWhite] = MakeToolButton(GuardRedaction(Commands.BlackWhite)),
+            [PreviewToolbarLayout.Sharpen] = MakeToolButton(GuardRedaction(Commands.Sharpen)),
+            [PreviewToolbarLayout.DocumentCorrection] = MakeToolButton(GuardRedaction(Commands.DocumentCorrection)),
+            [PreviewToolbarLayout.Compress] = MakeToolButton(GuardRedaction(Commands.Compress)),
             [PreviewToolbarLayout.Redact] = WithToolItemIcon(_redactButton, "redact"),
             [PreviewToolbarLayout.RedactColor] = _redactColorButton,
             [PreviewToolbarLayout.RedactUndo] = MakeToolButton(RedactUndoCommand),
@@ -311,18 +315,18 @@ public class PreviewForm : EtoDialogBase
             [PreviewToolbarLayout.ShowText] = WithToolItemIcon(_showTextToolItem, "text"),
             [PreviewToolbarLayout.CopyText] = MakeToolButton(CopyTextCommand),
             [PreviewToolbarLayout.ClearText] = MakeToolButton(ClearTextCommand),
-            [PreviewToolbarLayout.Split] = MakeToolButton(Commands.Split),
-            [PreviewToolbarLayout.Combine] = MakeToolButton(Commands.Combine),
+            [PreviewToolbarLayout.Split] = MakeToolButton(GuardRedaction(Commands.Split)),
+            [PreviewToolbarLayout.Combine] = MakeToolButton(GuardRedaction(Commands.Combine)),
             [PreviewToolbarLayout.EditWithApp] = _editWithAppButton,
             [PreviewToolbarLayout.Delete] = MakeToolButton(DeleteCurrentImageCommand)
         };
         if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SavePdf))
         {
-            items[PreviewToolbarLayout.SavePdf] = MakeToolButton(Commands.SaveSelectedPdf, "file_extension_pdf");
+            items[PreviewToolbarLayout.SavePdf] = MakeToolButton(GuardRedaction(Commands.SaveSelectedPdf), "file_extension_pdf");
         }
         if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SaveImages))
         {
-            items[PreviewToolbarLayout.SaveImages] = MakeToolButton(Commands.SaveSelectedImages, "picture");
+            items[PreviewToolbarLayout.SaveImages] = MakeToolButton(GuardRedaction(Commands.SaveSelectedImages), "picture");
         }
 
         // The order and visibility of the buttons can be customized by the user
@@ -337,7 +341,7 @@ public class PreviewForm : EtoDialogBase
     private void UpdateEditWithAppButton(float scale)
     {
         var command = Commands.CreateEditWithApp();
-        _editWithAppButton.Command = command;
+        _editWithAppButton.Command = GuardRedaction(command);
         _editWithAppButton.ToolTip = command.Text;
         // Always show the button. On first use it will prompt for an editor; the portable edition
         // must not hide the only way to configure its external editor.
@@ -370,8 +374,48 @@ public class PreviewForm : EtoDialogBase
 
     private void UpdateRedactCommands()
     {
-        RedactUndoCommand.Enabled = RedactApplyCommand.Enabled = ImageViewer.SelectionRects.Count > 0;
+        RedactUndoCommand.Enabled = RedactApplyCommand.Enabled = HasPendingRedaction;
     }
+
+    private bool HasPendingRedaction => ImageViewer.SelectionRects.Count > 0;
+
+    /// <summary>
+    /// Unapplied rectangles are only a preview and will not appear in exported
+    /// scans. An explicit decision is required before changing pages, exporting,
+    /// performing other image edits or closing the preview.
+    /// </summary>
+    private bool ConfirmPendingRedaction()
+    {
+        if (!HasPendingRedaction) return true;
+        var prompt = new ChoiceForm(Config)
+        {
+            Title = RedactionWarningText.Title,
+            Message = RedactionWarningText.Message,
+            Choices = [RedactionWarningText.Apply, RedactionWarningText.Discard]
+        };
+        prompt.ShowModal();
+        switch (prompt.SelectedChoice)
+        {
+            case 0:
+                ApplyRedaction();
+                return !HasPendingRedaction;
+            case 1:
+                EndRedaction();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private ActionCommand GuardRedaction(ActionCommand command) => new(() =>
+    {
+        if (ConfirmPendingRedaction())
+            command.Execute();
+    })
+    {
+        Text = command.Text,
+        IconName = command.IconName
+    };
 
     private void ApplyRedaction()
     {
@@ -391,12 +435,14 @@ public class PreviewForm : EtoDialogBase
             return (Transform) new RedactTransform(left, top, right - left, bottom - top, image.Width, image.Height,
                 rect.Color == Colors.White);
         }).ToList();
-        EndRedaction();
         // As the redaction is a transform, the affected pixels are overwritten whenever the image is rendered (for
         // display, saving, OCR, etc). An imported PDF page with a transform is exported as a rendered image rather
         // than by copying the original PDF page, and cached OCR results are keyed on the transform state, so the
         // redacted content doesn't end up in exported files.
+        // Only clear the preview once the mutation succeeds. If applying fails,
+        // the user must still be able to retry or explicitly discard the rectangles.
         ImageList.Mutate(new ImageListMutation.AddTransforms(transforms), ListSelection.Of(CurrentImage));
+        EndRedaction();
     }
 
     private void EndRedaction()
@@ -448,12 +494,14 @@ public class PreviewForm : EtoDialogBase
 
     private async Task GoTo(int index)
     {
+        if (index == ImageIndex || index < 0 || index >= ImageList.Images.Count)
+            return;
+        if (!ConfirmPendingRedaction())
+            return;
         lock (ImageList)
         {
-            if (index == ImageIndex || index < 0 || index >= ImageList.Images.Count)
-            {
+            if (index < 0 || index >= ImageList.Images.Count)
                 return;
-            }
             CurrentImage = ImageList.Images[index];
             ImageList.UpdateSelection(ListSelection.Of(CurrentImage));
         }
@@ -518,10 +566,12 @@ public class PreviewForm : EtoDialogBase
 
     private async Task UpdateImage()
     {
+        if (HasPendingRedaction) return;
         using var imageToRender = CurrentImage.GetClonedImage();
         using var rendered = await Task.Run(() => imageToRender.Render());
-        // Any unapplied redaction was for the previous image (or the previous state of this image)
-        ImageViewer.ClearSelectionRects();
+        // A rectangle might have been drawn while the render was running.
+        // Never silently erase unfinished redaction on asynchronous refresh.
+        if (HasPendingRedaction) return;
         ImageViewer.Image?.Dispose();
         ImageViewer.Image = rendered.ToEtoImage();
         ImageViewer.OutlineMode = Config.Get(c => c.RedactionOutlineMode);
@@ -561,6 +611,13 @@ public class PreviewForm : EtoDialogBase
         {
             await RefreshText();
         }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!ConfirmPendingRedaction())
+            e.Cancel = true;
+        base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
@@ -735,22 +792,24 @@ public class PreviewForm : EtoDialogBase
         if (MessageBox.Show(this,
                 string.Format(MiscResources.ConfirmDeleteItems, 1),
                 MiscResources.Delete, MessageBoxButtons.OKCancel,
-                MessageBoxType.Question, MessageBoxDefaultButton.OK) == DialogResult.Ok)
-        {
-            // We don't want to run Commands.Delete as that runs on DesktopController and uses that selection.
-            Commands.ImageListActions.DeleteSelected();
-        }
+                MessageBoxType.Question, MessageBoxDefaultButton.OK) != DialogResult.Ok)
+            return;
+        if (!ConfirmPendingRedaction())
+            return;
+        // We don't want to run Commands.Delete as that runs on DesktopController and uses that selection.
+        Commands.ImageListActions.DeleteSelected();
     }
 
     private void AssignKeyboardShortcuts()
     {
         // Unconfigurable defaults
 
-        _previewKsm.Assign("Esc", Close);
+        // Escape must never silently close the preview or discard redaction.
+        _previewKsm.Assign("Esc", () => { });
         _previewKsm.Assign("Del", DeleteCurrentImageCommand);
         _previewKsm.Assign("Mod+0", ZoomActualCommand);
-        _previewKsm.Assign("Mod+Z", Commands.Undo);
-        _previewKsm.Assign(EtoPlatform.Current.IsWindows ? "Mod+Y" : "Mod+Shift+Z", Commands.Redo);
+        _previewKsm.Assign("Mod+Z", GuardRedaction(Commands.Undo));
+        _previewKsm.Assign(EtoPlatform.Current.IsWindows ? "Mod+Y" : "Mod+Shift+Z", GuardRedaction(Commands.Redo));
 
         _previewKsm.Assign("PageDown", () => _ = GoTo(ImageIndex + 1));
         _previewKsm.Assign("Right", () => _ = GoTo(ImageIndex + 1));
@@ -765,35 +824,35 @@ public class PreviewForm : EtoDialogBase
         var ks = Config.Get(c => c.KeyboardShortcuts);
 
         _previewKsm.Assign(ks.Delete, DeleteCurrentImageCommand);
-        _previewKsm.Assign(ks.ImageBlackWhite, Commands.BlackWhite);
-        _previewKsm.Assign(ks.ImageBrightness, Commands.BrightCont);
-        _previewKsm.Assign(ks.ImageContrast, Commands.BrightCont);
-        _previewKsm.Assign(ks.ImageCrop, Commands.Crop);
-        _previewKsm.Assign(ks.ImageHue, Commands.HueSat);
-        _previewKsm.Assign(ks.ImageSaturation, Commands.HueSat);
-        _previewKsm.Assign(ks.ImageSharpen, Commands.Sharpen);
-        _previewKsm.Assign(ks.ImageDocumentCorrection, Commands.DocumentCorrection);
-        _previewKsm.Assign(ks.ImageCompress, Commands.Compress);
-        _previewKsm.Assign(ks.ImageSplit, Commands.Split);
-        _previewKsm.Assign(ks.ImageCombine, Commands.Combine);
-        _previewKsm.Assign(ks.ImageEditWith, Commands.CreateEditWithApp());
+        _previewKsm.Assign(ks.ImageBlackWhite, GuardRedaction(Commands.BlackWhite));
+        _previewKsm.Assign(ks.ImageBrightness, GuardRedaction(Commands.BrightCont));
+        _previewKsm.Assign(ks.ImageContrast, GuardRedaction(Commands.BrightCont));
+        _previewKsm.Assign(ks.ImageCrop, GuardRedaction(Commands.Crop));
+        _previewKsm.Assign(ks.ImageHue, GuardRedaction(Commands.HueSat));
+        _previewKsm.Assign(ks.ImageSaturation, GuardRedaction(Commands.HueSat));
+        _previewKsm.Assign(ks.ImageSharpen, GuardRedaction(Commands.Sharpen));
+        _previewKsm.Assign(ks.ImageDocumentCorrection, GuardRedaction(Commands.DocumentCorrection));
+        _previewKsm.Assign(ks.ImageCompress, GuardRedaction(Commands.Compress));
+        _previewKsm.Assign(ks.ImageSplit, GuardRedaction(Commands.Split));
+        _previewKsm.Assign(ks.ImageCombine, GuardRedaction(Commands.Combine));
+        _previewKsm.Assign(ks.ImageEditWith, GuardRedaction(Commands.CreateEditWithApp()));
 
-        _previewKsm.Assign(ks.RotateCustom, Commands.CustomRotate);
-        _previewKsm.Assign(ks.RotateDeskew, Commands.Deskew);
-        _previewKsm.Assign(ks.RotateFlip, Commands.Flip);
-        _previewKsm.Assign(ks.RotateLeft, Commands.RotateLeft);
-        _previewKsm.Assign(ks.RotateRight, Commands.RotateRight);
+        _previewKsm.Assign(ks.RotateCustom, GuardRedaction(Commands.CustomRotate));
+        _previewKsm.Assign(ks.RotateDeskew, GuardRedaction(Commands.Deskew));
+        _previewKsm.Assign(ks.RotateFlip, GuardRedaction(Commands.Flip));
+        _previewKsm.Assign(ks.RotateLeft, GuardRedaction(Commands.RotateLeft));
+        _previewKsm.Assign(ks.RotateRight, GuardRedaction(Commands.RotateRight));
 
         if (PlatformCompat.System.CombinedPdfAndImageSaving)
         {
-            _previewKsm.Assign(ks.SavePDFAll, Commands.SaveSelected);
+            _previewKsm.Assign(ks.SavePDFAll, GuardRedaction(Commands.SaveSelected));
         }
         else
         {
-            _previewKsm.Assign(ks.SavePDF, Commands.SaveSelectedPdf);
-            _previewKsm.Assign(ks.SaveImages, Commands.SaveSelectedImages);
-            _previewKsm.Assign(ks.SavePDFAll, Commands.SaveSelectedPdf);
-            _previewKsm.Assign(ks.SaveImagesAll, Commands.SaveSelectedImages);
+            _previewKsm.Assign(ks.SavePDF, GuardRedaction(Commands.SaveSelectedPdf));
+            _previewKsm.Assign(ks.SaveImages, GuardRedaction(Commands.SaveSelectedImages));
+            _previewKsm.Assign(ks.SavePDFAll, GuardRedaction(Commands.SaveSelectedPdf));
+            _previewKsm.Assign(ks.SaveImagesAll, GuardRedaction(Commands.SaveSelectedImages));
         }
 
         _previewKsm.Assign(ks.ZoomIn, ZoomInCommand);
