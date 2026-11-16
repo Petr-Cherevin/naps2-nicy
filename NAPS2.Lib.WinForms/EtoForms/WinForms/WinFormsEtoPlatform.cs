@@ -327,8 +327,10 @@ public class WinFormsEtoPlatform : EtoPlatform
         if (window is NAPS2.EtoForms.Ui.DesktopForm)
         {
             form.ShowInTaskbar = true;
-            if (TaskbarStartupTest.Mode == TaskbarStartupMode.Shell)
-                TaskbarShellExperiment.Attach(form);
+            // WinForms sometimes omits the taskbar button when the user
+            // switches applications during startup. Register it with the Shell
+            // after Show, without moving NAPS2 to the foreground.
+            TaskbarRegistration.Attach(form);
             return;
         }
 

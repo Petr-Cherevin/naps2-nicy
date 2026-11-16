@@ -14,9 +14,6 @@ public static class GuiEntryPoint
 {
     public static int Run(string[] args, Module imageModule, Module platformModule)
     {
-        // Select a startup experiment before constructing the GUI.
-        TaskbarStartupTest.Configure(args);
-
         // Initialize Autofac (the DI framework)
         var container = AutoFacHelper.FromModules(
             new CommonModule(), imageModule, platformModule, new GuiModule(), new RecoveryModule(), new StaticInitModule());
@@ -43,35 +40,7 @@ public static class GuiEntryPoint
         var formFactory = container.Resolve<IFormFactory>();
         var desktop = formFactory.Create<DesktopForm>();
 
-        if (TaskbarStartupTest.Mode == TaskbarStartupMode.NoActivate)
-        {
-            // Let the initial Show use the native ShowWithoutActivation path.
-            desktop.ShowActivated = false;
-            DiagnosticLog.Write("TaskbarExperiment", "initial-show-activation=disabled");
-        }
-
-        if (TaskbarStartupTest.Mode == TaskbarStartupMode.Delayed)
-        {
-            // Eto.Run(desktop) normally calls Show before WinForms.Application.Run.
-            // Post Show to the UI message loop instead of showing synchronously.
-            application.Initialized += (_, _) =>
-            {
-                DiagnosticLog.Write("TaskbarExperiment", "message-loop-startup=queued-show");
-                application.AsyncInvoke(() =>
-                {
-                    DiagnosticLog.Write("TaskbarExperiment", "message-loop-running=show-start");
-                    application.MainForm = desktop;
-                    desktop.Show();
-                    DiagnosticLog.Write("TaskbarExperiment", "message-loop-running=show-complete");
-                });
-            };
-            application.Run();
-        }
-        else
-        {
-            DiagnosticLog.Write("TaskbarExperiment", "eto-run=standard");
-            application.Run(desktop);
-        }
+        application.Run(desktop);
         return 0;
     }
 }
