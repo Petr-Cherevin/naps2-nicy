@@ -45,8 +45,8 @@ public class OcrSetupForm : EtoDialogBase
     private readonly LinkButton _moreLanguages = C.Link(UiStrings.GetMoreLanguages);
 
     private List<Language> _installed = [];
-    private string _favoriteCode;
-    private string _customCode;
+    private string _favoriteCode = "";
+    private string _customCode = "";
     private readonly string _originalCode;
     private bool _reloadingLanguages;
 
