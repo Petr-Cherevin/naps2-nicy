@@ -4,7 +4,7 @@
 
 #define AppShortName             "NAPS2"
 #define AppLongName              "NAPS2 - Not Another PDF Scanner"
-#define AppCompany               "NAPS2 Software"
+#define AppCompany               "Nicy (unofficial NAPS2 build)"
 #define AppCopyrightStartYear    "2009"
 #define AppCopyrightEndYear      GetDateTimeString('yyyy','','')
 #define AppCopyrightCompany      "NAPS2 Contributors"
@@ -13,11 +13,13 @@
 [Setup]
 AppName={#AppLongName}
 AppVersion={#AppVersion}
-AppVerName={#AppShortName} {#AppVersionName}
+; Preserve AppName (and thus Inno Setup implicit AppId) so this replaces the official install.
+; Only the display label identifies this unsigned community build.
+AppVerName={#AppShortName} Nicy-0010 ({#AppVersionName})
 AppPublisher={#AppCompany}
-AppPublisherURL=https://www.naps2.com
-AppSupportURL=https://www.naps2.com/support
-AppUpdatesURL=https://www.naps2.com/download
+AppPublisherURL=https://github.com/Petr-Cherevin/naps2-nicy
+AppSupportURL=https://github.com/Petr-Cherevin/naps2-nicy/issues
+AppUpdatesURL=https://github.com/Petr-Cherevin/naps2-nicy
 
 VersionInfoDescription={#AppShortName} installer
 VersionInfoVersion={#AppVersion}
@@ -37,7 +39,7 @@ DefaultDirName={commonpf}\{#AppShortName}
 DefaultGroupName={#AppShortName}
 LicenseFile=..\license.rtf
 
-UninstallDisplayName={#AppShortName}
+UninstallDisplayName={#AppShortName} Nicy-0010
 UninstallDisplayIcon={app}\{#ExeName}
 
 OutputDir=../publish/{#AppVersionName}
