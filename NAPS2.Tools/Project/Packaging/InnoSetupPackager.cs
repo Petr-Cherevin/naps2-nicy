@@ -78,6 +78,7 @@ public static class InnoSetupPackager
         }
         template = template.Replace("; !files", fileLines.ToString());
 
+        Directory.CreateDirectory(Paths.SetupObj);
         var innoDefPath = Path.Combine(Paths.SetupObj, "setup.iss");
         File.WriteAllText(innoDefPath, template);
         return innoDefPath;
