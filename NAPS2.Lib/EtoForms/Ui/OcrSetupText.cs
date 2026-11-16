@@ -21,6 +21,7 @@ internal static class OcrSetupText
     public static string EditFavorite => Ru ? "Изменить набор..." : "Edit set...";
     public static string SaveAsFavorite => Ru ? "Сохранить как мой набор" : "Save as my set";
     public static string NoFavorite => Ru ? "Набор пока не сохранён" : "No saved set yet";
+    public static string ShowAllSavedLanguages => Ru ? "Показать все сохранённые языки" : "Show all saved languages";
     public static string SelectLanguage => Ru ? "Выберите хотя бы один установленный язык." :
         "Choose at least one installed language.";
 }

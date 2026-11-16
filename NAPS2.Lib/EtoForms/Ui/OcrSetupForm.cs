@@ -1,3 +1,4 @@
+using System.Globalization;
 using Eto.Drawing;
 using Eto.Forms;
 using NAPS2.EtoForms.Layout;
@@ -29,8 +30,14 @@ public class OcrSetupForm : EtoDialogBase
     private readonly DropDown _singleLanguage = C.DropDown();
     private readonly IListView<Language> _customLanguages;
     private readonly IListView<Language> _favoriteLanguages;
-    // A changing selection must not resize this row or move the language list.
-    private readonly Label _favoriteSummary = new() { Wrap = WrapMode.None, Height = 26 };
+    // Two full-width, fixed-height summary rows. The second row is normally empty.
+    // Their size never depends on the length of the saved language names.
+    private readonly Panel _favoriteSummaryArea = new() { Height = 48 };
+    private readonly Label _favoriteSummaryLine1 = new() { Wrap = WrapMode.None, Height = 24 };
+    private readonly Label _favoriteSummaryLine2 = new() { Wrap = WrapMode.None, Height = 24 };
+    private readonly LinkButton _favoriteSummaryExpand = C.Link(">>");
+    private List<string> _favoriteLanguageNames = [];
+    private bool _allowInterfaceLanguageDefault;
     private readonly Button _saveFavorite = C.Button(OcrSetupText.SaveAsFavorite);
     private readonly EnumDropDownWidget<LocalizedOcrMode> _ocrMode = new()
         { Items = [LocalizedOcrMode.Fast, LocalizedOcrMode.Best] };
@@ -51,7 +58,24 @@ public class OcrSetupForm : EtoDialogBase
         _tesseractLanguageManager = tesseractLanguageManager;
         _customLanguages = EtoPlatform.Current.CreateListView(ocrLanguagesListViewBehavior);
         _favoriteLanguages = EtoPlatform.Current.CreateListView(ocrLanguagesListViewBehavior);
-        EtoPlatform.Current.ConfigureEllipsis(_favoriteSummary);
+        _favoriteSummaryExpand.Visible = false;
+        _favoriteSummaryExpand.ToolTip = OcrSetupText.ShowAllSavedLanguages;
+        _favoriteSummaryExpand.Click += (_, _) => ShowAllFavoriteLanguages();
+        _favoriteSummaryArea.SizeChanged += (_, _) => UpdateFavoriteSummary();
+        _favoriteSummaryArea.Content = new TableLayout(
+            new TableRow(new TableCell(_favoriteSummaryLine1, true)),
+            new TableRow(new TableCell(new TableLayout(
+                new TableRow(
+                    new TableCell(_favoriteSummaryLine2, true),
+                    new TableCell(_favoriteSummaryExpand)))
+            {
+                Padding = new Padding(0),
+                Spacing = new Size(0, 0)
+            }, true)))
+        {
+            Padding = new Padding(0),
+            Spacing = new Size(0, 0)
+        };
 
         _originalCode = Config.Get(c => c.OcrLanguageCode) ?? "";
         _favoriteCode = Config.Get(c => c.OcrFavoriteLanguageCode) ??
@@ -80,6 +104,11 @@ public class OcrSetupForm : EtoDialogBase
             UpdateFavoriteSummary();
         };
 
+        // A user's chosen OCR language always wins over the interface-language
+        // suggestion. Do not silently select a different installed language.
+        _allowInterfaceLanguageDefault =
+            !Config.User.Has(c => c.OcrLanguageCode) &&
+            !Config.User.Has(c => c.OcrSingleLanguageCode);
         LoadLanguages(_customCode);
         _favoriteLanguages.SelectionChanged += (_, _) =>
         {
@@ -89,10 +118,12 @@ public class OcrSetupForm : EtoDialogBase
         };
         var storedSingleCode = Config.Get(c => c.OcrSingleLanguageCode);
         var singleCode = storedSingleCode ?? (_originalCode.Contains('+') ? "" : _originalCode);
-        if (_singleLanguage.Items.Any(x => x.Key == singleCode))
+        if (!string.IsNullOrEmpty(singleCode) && _singleLanguage.Items.Any(x => x.Key == singleCode))
             _singleLanguage.SelectedKey = singleCode;
-        else if (_singleLanguage.Items.Count > 0)
-            _singleLanguage.SelectedIndex = 0;
+        else if (_allowInterfaceLanguageDefault)
+            SelectInterfaceLanguageIfInstalled();
+        else
+            _singleLanguage.SelectedIndex = -1;
 
         _modePages = [MakeSinglePage(), MakeFavoritePage(), MakeCustomPage()];
         for (int i = 0; i < _modeButtons.Length; i++)
@@ -139,7 +170,7 @@ public class OcrSetupForm : EtoDialogBase
     {
         var layout = new DynamicLayout { Padding = new Padding(12), Spacing = new Size(8, 8) };
         layout.AddRow(C.Label(OcrSetupText.FavoriteDescription));
-        layout.AddRow(_favoriteSummary);
+        layout.AddRow(_favoriteSummaryArea);
         // Editing the saved set does NOT switch to the Custom mode.
         layout.Add(_favoriteLanguages.Control, yscale: true);
         return layout;
@@ -191,9 +222,10 @@ public class OcrSetupForm : EtoDialogBase
             Key = language.Code,
             Text = language.Name
         }));
-        _singleLanguage.SelectedKey = priorSingle;
-        if (_singleLanguage.SelectedIndex < 0 && _singleLanguage.Items.Count > 0)
-            _singleLanguage.SelectedIndex = 0;
+        if (!string.IsNullOrEmpty(priorSingle) && _singleLanguage.Items.Any(item => item.Key == priorSingle))
+            _singleLanguage.SelectedKey = priorSingle;
+        else
+            _singleLanguage.SelectedIndex = -1;
 
         _customLanguages.SetItems(_installed);
         _favoriteLanguages.SetItems(_installed);
@@ -227,15 +259,101 @@ public class OcrSetupForm : EtoDialogBase
     private string SelectedCustomCode() => SelectionCode(_customLanguages);
     private string SelectedFavoriteCode() => SelectionCode(_favoriteLanguages);
 
+    private static string FitSummaryLine(string text, float maxWidth, Font font, out string rest)
+    {
+        if (string.IsNullOrEmpty(text) || maxWidth <= 0)
+        {
+            rest = text;
+            return "";
+        }
+
+        if (font.MeasureString(text).Width <= maxWidth)
+        {
+            rest = "";
+            return text;
+        }
+
+        // Binary search by measured pixel width, rather than a character count,
+        // so two rows work with different fonts and Windows display scaling.
+        int lo = 0, hi = text.Length;
+        while (lo < hi)
+        {
+            int middle = (lo + hi + 1) / 2;
+            if (font.MeasureString(text[..middle]).Width <= maxWidth)
+                lo = middle;
+            else
+                hi = middle - 1;
+        }
+
+        int length = Math.Max(1, lo);
+        int lastSpace = text.LastIndexOf(' ', length - 1, length);
+        if (lastSpace > 0)
+            length = lastSpace;
+        rest = text[length..].TrimStart();
+        return text[..length].TrimEnd();
+    }
+
     private void UpdateFavoriteSummary()
     {
-        var codes = _favoriteCode.Split('+', StringSplitOptions.RemoveEmptyEntries);
-        string summary = codes.Length == 0
-            ? OcrSetupText.NoFavorite
-            : string.Join(" + ", codes.Select(code =>
-                _installed.FirstOrDefault(lang => lang.Code == code)?.Name ?? code));
-        _favoriteSummary.Text = summary;
-        _favoriteSummary.ToolTip = summary;
+        _favoriteLanguageNames = _favoriteCode
+            .Split('+', StringSplitOptions.RemoveEmptyEntries)
+            .Select(code => _installed.FirstOrDefault(lang => lang.Code == code)?.Name ?? code)
+            .ToList();
+
+        string summary = string.Join(" + ", _favoriteLanguageNames);
+        _favoriteSummaryLine1.ToolTip = summary;
+        _favoriteSummaryLine2.ToolTip = summary;
+        // A newly constructed Panel has no size yet. Its SizeChanged event
+        // recalculates the lines once the form's actual width becomes known.
+        int width = _favoriteSummaryArea.Width;
+        if (width < 40)
+        {
+            _favoriteSummaryLine1.Text = " ";
+            _favoriteSummaryLine2.Text = " ";
+            _favoriteSummaryExpand.Visible = false;
+            return;
+        }
+
+        var font = _favoriteSummaryLine1.Font;
+        string line1 = FitSummaryLine(summary, width, font, out string remaining);
+        string line2 = FitSummaryLine(remaining, width, font, out string extra);
+        bool overflow = extra.Length > 0;
+        if (overflow)
+        {
+            // Reserve room on the SECOND row for the clickable overflow mark.
+            float expandWidth = _favoriteSummaryExpand.Font.MeasureString(">>").Width + 16;
+            line2 = FitSummaryLine(remaining, Math.Max(12, width - expandWidth), font, out _);
+        }
+        _favoriteSummaryLine1.Text = line1.Length == 0 ? " " : line1;
+        _favoriteSummaryLine2.Text = line2.Length == 0 ? " " : line2;
+        _favoriteSummaryExpand.Visible = overflow;
+    }
+
+    private void ShowAllFavoriteLanguages()
+    {
+        if (_favoriteLanguageNames.Count == 0) return;
+        // A native context-menu balloon overlays the dialog without resizing it.
+        var popup = new ContextMenu(_favoriteLanguageNames
+            .Select(name => (MenuItem)new ButtonMenuItem { Text = name })
+            .ToArray());
+        popup.Show(_favoriteSummaryExpand);
+    }
+
+    private void SelectInterfaceLanguageIfInstalled()
+    {
+        var uiCulture = CultureInfo.CurrentUICulture;
+        string code = uiCulture.Name.StartsWith("zh-Hant", StringComparison.OrdinalIgnoreCase) ||
+                      uiCulture.Name.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase) ||
+                      uiCulture.Name.StartsWith("zh-HK", StringComparison.OrdinalIgnoreCase)
+            ? "chi_tra"
+            : uiCulture.TwoLetterISOLanguageName == "zh"
+                ? "chi_sim"
+                : uiCulture.ThreeLetterISOLanguageName;
+
+        if (_installed.Any(lang => lang.Code.Equals(code, StringComparison.OrdinalIgnoreCase)))
+            _singleLanguage.SelectedKey = code;
+        else
+            _singleLanguage.SelectedIndex = -1;
     }
 
     private void UpdateView()
@@ -257,6 +375,8 @@ public class OcrSetupForm : EtoDialogBase
         _favoriteCode = SelectedFavoriteCode();
         FormFactory.Create<OcrDownloadForm>().ShowModal();
         LoadLanguages(_customCode);
+        if (_allowInterfaceLanguageDefault && _singleLanguage.SelectedIndex < 0)
+            SelectInterfaceLanguageIfInstalled();
     }
 
     public bool Saved { get; private set; }
