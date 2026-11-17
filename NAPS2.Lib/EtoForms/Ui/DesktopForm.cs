@@ -643,8 +643,12 @@ public abstract class DesktopForm : EtoFormBase
             Commands.RotateMenu.Enabled = Commands.MoveUp.Enabled = Commands.MoveDown.Enabled =
                 Commands.RotateLeftCompact.Enabled = Commands.RotateRightCompact.Enabled =
                     Commands.Rotate180Compact.Enabled = Commands.DeskewCompact.Enabled =
-                        Commands.ExtractSelected.Enabled = Commands.ClearTextSelected.Enabled =
+                        Commands.ClearTextSelected.Enabled =
                             Commands.Delete.Enabled = ImageList.Selection.Any();
+        // Extract requires an actual page still in the list, not just a
+        // potentially stale selection.
+        Commands.ExtractSelected.Enabled =
+            ImageList.Selection.Any(image => ImageList.Images.Contains(image));
         Commands.SavePdf.Enabled = Commands.SaveImages.Enabled = Commands.ClearAll.Enabled =
             Commands.ReorderMenu.Enabled =
                 Commands.EmailPdf.Enabled = Commands.Print.Enabled = ImageList.Images.Any();

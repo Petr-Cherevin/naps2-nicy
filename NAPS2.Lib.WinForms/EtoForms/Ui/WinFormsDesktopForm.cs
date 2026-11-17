@@ -414,6 +414,9 @@ public class WinFormsDesktopForm : DesktopForm
                 menuItem.ShortcutKeys = swfKeys;
             }
         }
+        // A toolbar may be created/recreated after the command was disabled.
+        // EnabledChanged alone misses the initial disabled state.
+        item.Enabled = command.Enabled;
         command.EnabledChanged += (_, _) => item.Enabled = command.Enabled;
         if (item is WF.ToolStripSplitButton button)
         {

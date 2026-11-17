@@ -17,6 +17,19 @@ public class PreviewToolbarLayoutTests
     }
 
     [Fact]
+    public void ExtractAppearsImmediatelyAfterSavePdfInExistingLayouts()
+    {
+        // Existing saved toolbar configurations do not contain the new id.
+        var items = PreviewToolbarLayout.Parse("savePdf,saveImages,delete");
+        var ids = items.Select(item => item.Id).ToList();
+
+        Assert.Equal(ids.IndexOf(PreviewToolbarLayout.SavePdf) + 1,
+            ids.IndexOf(PreviewToolbarLayout.Extract));
+        Assert.Equal(ids.IndexOf(PreviewToolbarLayout.Extract) + 1,
+            ids.IndexOf(PreviewToolbarLayout.SaveImages));
+    }
+
+    [Fact]
     public void RoundTrip()
     {
         var items = PreviewToolbarLayout.Parse("");

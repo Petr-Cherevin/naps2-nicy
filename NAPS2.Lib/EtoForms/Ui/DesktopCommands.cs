@@ -118,7 +118,9 @@ public class DesktopCommands
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
             Text = UiStrings.ExtractSelected,
-            IconName = "arrow_out"
+            IconName = "arrow_out",
+            // Needed when the toolbar is recreated without a selection change.
+            Enabled = imageListActions.SelectedImages.Any(imageList.Images.Contains)
         };
         OcrSettings = new ActionCommand(desktopSubFormController.ShowOcrForm)
         {

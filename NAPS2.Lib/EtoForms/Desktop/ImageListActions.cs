@@ -115,7 +115,9 @@ public class ImageListActions
     /// </summary>
     public async Task ExtractSelectedAsPdf()
     {
-        var images = _imageList.Selection.ToList();
+        // Honor a preview's explicitly scoped selection; the main window's
+        // multi-selection must not leak into a single-page extraction.
+        var images = (Selection ?? _imageList.Selection).Where(_imageList.Images.Contains).ToList();
         if (images.Count == 0)
         {
             return;

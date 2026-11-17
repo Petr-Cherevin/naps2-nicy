@@ -40,6 +40,7 @@ public static class PreviewToolbarLayout
     public const string EditWithApp = "editWithApp";
     public const string EditWithPick = "editWithPick";
     public const string SavePdf = "savePdf";
+    public const string Extract = "extract";
     public const string SaveImages = "saveImages";
     public const string Delete = "delete";
 
@@ -58,7 +59,7 @@ public static class PreviewToolbarLayout
         "sep4",
         Split, Combine, EditWithApp,
         "sep5",
-        SavePdf, SaveImages,
+        SavePdf, Extract, SaveImages,
         "sep6",
         Delete
     ];

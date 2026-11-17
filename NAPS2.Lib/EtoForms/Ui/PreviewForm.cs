@@ -336,6 +336,10 @@ public class PreviewForm : EtoDialogBase
         {
             items[PreviewToolbarLayout.SavePdf] = MakeToolButton(GuardRedaction(Commands.SaveSelectedPdf), "file_extension_pdf");
         }
+        // Unlike the main window, Commands was scoped to CurrentImage in
+        // CurrentImage's setter. Extract must save/remove ONLY that page.
+        items[PreviewToolbarLayout.Extract] =
+            MakeToolButton(GuardRedaction(Commands.ExtractSelected), "arrow_out");
         if (!Config.Get(c => c.HiddenButtons).HasFlag(ToolbarButtons.SaveImages))
         {
             items[PreviewToolbarLayout.SaveImages] = MakeToolButton(GuardRedaction(Commands.SaveSelectedImages), "picture");

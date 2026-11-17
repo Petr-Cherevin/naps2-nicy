@@ -232,6 +232,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
         PreviewToolbarLayout.EditWithApp => UiStrings.EditWithLastApp,
         PreviewToolbarLayout.EditWithPick => UiStrings.EditWith,
         PreviewToolbarLayout.SavePdf => UiStrings.SaveSelectedAsPdf,
+        PreviewToolbarLayout.Extract => UiStrings.ExtractSelected,
         PreviewToolbarLayout.SaveImages => UiStrings.SaveSelectedAsImages,
         PreviewToolbarLayout.Delete => UiStrings.Delete,
         _ => UiStrings.SeparatorItem
@@ -265,6 +266,7 @@ internal class ToolbarSettingsPanel : SettingsPanel
         PreviewToolbarLayout.EditWithApp => "pencil",
         PreviewToolbarLayout.EditWithPick => "pencil",
         PreviewToolbarLayout.SavePdf => "file_extension_pdf",
+        PreviewToolbarLayout.Extract => "arrow_out",
         PreviewToolbarLayout.SaveImages => "picture",
         PreviewToolbarLayout.Delete => "cross",
         _ => null
