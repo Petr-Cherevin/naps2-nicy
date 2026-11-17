@@ -90,6 +90,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+      - name: Validate vanilla settings script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            'tools/Naps2VanillaSettings.ps1', [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'Settings PowerShell script has syntax errors'
+          }
       - uses: actions/download-artifact@v6
         with:
           name: nicy-0014-release-portable
@@ -98,10 +110,19 @@ jobs:
         with:
           name: nicy-0014-release-installer
           path: dist
-      - name: Verify release assets
+      - name: Prepare release assets
+        shell: bash
         run: |
-          test -s dist/NAPS2-ChatGPT-0014-win-x64.zip
-          test -s dist/NAPS2-Nicy-0014-Setup-win-x64.exe
+          set -euo pipefail
+          mkdir -p release-assets
+          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0014-win-x64.zip' -print -quit)"
+          installer="$(find dist -type f -name 'NAPS2-Nicy-0014-Setup-win-x64.exe' -print -quit)"
+          test -n "$portable" && test -s "$portable"
+          test -n "$installer" && test -s "$installer"
+          cp "$portable" release-assets/
+          cp "$installer" release-assets/
+          cp tools/Naps2VanillaSettings.ps1 tools/Naps2VanillaSettings.cmd release-assets/
+          ls -lh release-assets/
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,8 +130,11 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           gh release create nicy-0014 \
-            dist/NAPS2-ChatGPT-0014-win-x64.zip \
-            dist/NAPS2-Nicy-0014-Setup-win-x64.exe \
+            release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
+            release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
+            release-assets/Naps2VanillaSettings.ps1 \
+            release-assets/Naps2VanillaSettings.cmd \
             --target "$RELEASE_SHA" \
             --title "NAPS2 Nicy-0014" \
-            --notes "Unofficial Windows x64 build of NAPS2. Removes custom ChatGPT/Nicy Diagnostics logging while keeping upstream NAPS2 logging. Includes preview page extraction and redaction updates. The EXE installer is unsigned. Back up %APPDATA%\\NAPS2 before replacing your installed NAPS2."
+            --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
+
