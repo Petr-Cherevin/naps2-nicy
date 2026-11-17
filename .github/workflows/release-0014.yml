@@ -129,12 +129,26 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ github.sha }}
         run: |
-          gh release create nicy-0014 \
-            release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
-            release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
-            release-assets/Naps2VanillaSettings.ps1 \
-            release-assets/Naps2VanillaSettings.cmd \
-            --target "$RELEASE_SHA" \
-            --title "NAPS2 Nicy-0014" \
-            --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
+          set -euo pipefail
+          if gh release view nicy-0014 >/dev/null 2>&1; then
+            # Release might already have been created by another successful run.
+            # Replace its assets with those from the newest commit.
+            gh release upload nicy-0014 \
+              release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
+              release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
+              release-assets/Naps2VanillaSettings.ps1 \
+              release-assets/Naps2VanillaSettings.cmd \
+              --clobber
+            gh release edit nicy-0014 --title "NAPS2 Nicy-0014" \
+              --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
+          else
+            gh release create nicy-0014 \
+              release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
+              release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
+              release-assets/Naps2VanillaSettings.ps1 \
+              release-assets/Naps2VanillaSettings.cmd \
+              --target "$RELEASE_SHA" \
+              --title "NAPS2 Nicy-0014" \
+              --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
+          fi
 
