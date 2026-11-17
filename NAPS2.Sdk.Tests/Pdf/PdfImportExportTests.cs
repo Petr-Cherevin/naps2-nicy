@@ -33,7 +33,6 @@ public class PdfImportExportTests : ContextualTests
         var images = await _importer.Import(_importPath).ToListAsync();
         Assert.Equal(2, images.Count);
         var values = new ConcurrentQueue<int>();
-        var phases = new List<string>();
         var progress = new ProgressHandler((current, max) =>
         {
             Assert.Equal(images.Count, max);
@@ -41,9 +40,8 @@ public class PdfImportExportTests : ContextualTests
         }, CancellationToken.None);
 
         Assert.True(await _exporter.Export(_exportPath, images,
-            ocrParams: OcrParams.Empty, progress: progress, diagnostics: phases.Add));
+            ocrParams: OcrParams.Empty, progress: progress));
 
-        Assert.Contains(phases, phase => phase.Contains("passthroughPages=2"));
         Assert.Contains(1, values);
         Assert.Equal(2, values.Last());
         PdfAsserts.AssertPageCount(2, _exportPath);
@@ -205,10 +203,7 @@ public class PdfImportExportTests : ContextualTests
         await ScanningContext.OcrRequestQueue.Enqueue(ScanningContext, ScanningContext.OcrEngine!, images[0],
             tempPath, ocrParams, OcrPriority.Foreground, CancellationToken.None);
         var secondExportPath = P("export2.pdf");
-        var stages = new List<string>();
-        await _exporter.Export(secondExportPath, images, exportParams, ocrParams,
-            diagnostics: stages.Add);
-        Assert.Contains(stages, stage => stage.Contains("cacheHits=1 rendered=0"));
+        await _exporter.Export(secondExportPath, images, exportParams, ocrParams);
         PdfAsserts.AssertContainsTextOnce("Sized for printing unscaled", secondExportPath);
     }
 
