@@ -2,7 +2,7 @@
 # NAPS2 vanilla settings backup/restore. No administrator rights required.
 # F12 cancels operations only while this console window has keyboard focus.
 $ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 Add-Type -AssemblyName System.IO.Compression
 
 $SourceFolder = Join-Path $env:APPDATA 'NAPS2'
@@ -34,7 +34,7 @@ function Copy-StreamWithF12 {
         [Parameter(Mandatory)] [System.IO.Stream] $From,
         [Parameter(Mandatory)] [System.IO.Stream] $To
     )
-    $buffer = New-Object byte[] (1024 * 1024)
+    $buffer = [byte[]]::new(1048576)
     while (($size = $From.Read($buffer, 0, $buffer.Length)) -gt 0) {
         Check-F12
         $To.Write($buffer, 0, $size)
