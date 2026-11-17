@@ -257,17 +257,20 @@ while ($true) {
     Write-Host '1 — Сохранить настройки в ZIP'
     Write-Host '2 — Восстановить настройки из ZIP'
     Write-Host '0 / Esc / F12 — Выход'
-    $key = [Console]::ReadKey($true).Key
-    if ($key -in @([ConsoleKey]::F12, [ConsoleKey]::Escape,
-                   [ConsoleKey]::D0, [ConsoleKey]::NumPad0)) { break }
+    # Read-Confirmation echoes each character; actions run ONLY after Enter.
+    # Backspace edits the input, Esc cancels, F12 stops in the focused console.
     try {
-        switch ($key) {
-            { $_ -in @([ConsoleKey]::D1, [ConsoleKey]::NumPad1) } { Save-VanillaSettings; break }
-            { $_ -in @([ConsoleKey]::D2, [ConsoleKey]::NumPad2) } { Restore-VanillaSettings; break }
-            default { Write-Host 'Выберите 1, 2 или 0.' }
+        $choice = Read-Confirmation 'Выберите 1, 2 или 0 и нажмите Enter: '
+        switch ($choice.Trim()) {
+            '1' { Save-VanillaSettings }
+            '2' { Restore-VanillaSettings }
+            '0' { return }
+            ''  { Write-Host 'Выбор отменён.' }
+            default { Write-Host 'Выберите 1, 2 или 0, затем нажмите Enter.' }
         }
     } catch [OperationCanceledException] {
         Write-Host 'Операция остановлена клавишей F12; исходные настройки сохранены.'
+        return
     } catch {
         Write-Host ('Ошибка: ' + $_.Exception.Message)
     }

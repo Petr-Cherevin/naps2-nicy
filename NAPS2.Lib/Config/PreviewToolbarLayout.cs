@@ -69,7 +69,22 @@ public static class PreviewToolbarLayout
         public bool IsSeparator => PreviewToolbarLayout.IsSeparator(Id);
     }
 
-    public static bool IsSeparator(string id) => id.StartsWith(SeparatorPrefix, StringComparison.Ordinal);
+    // Separators have their own persisted IDs so users can add and reorder them.
+    // Only numeric IDs are accepted; unknown toolbar buttons are still discarded.
+    public static bool IsSeparator(string id) =>
+        id.StartsWith(SeparatorPrefix, StringComparison.Ordinal) &&
+        int.TryParse(id.AsSpan(SeparatorPrefix.Length), out int number) && number > 0;
+
+    public static string NewSeparatorId(IEnumerable<Item> items)
+    {
+        var existing = items.Select(x => x.Id).ToHashSet(StringComparer.Ordinal);
+        for (int i = 7; i < int.MaxValue; i++)
+        {
+            var id = $"{SeparatorPrefix}{i}";
+            if (!existing.Contains(id)) return id;
+        }
+        throw new InvalidOperationException("No separator IDs available");
+    }
 
     /// <summary>
     /// Parses the stored layout into the full list of items in display order.
@@ -87,7 +102,7 @@ public static class PreviewToolbarLayout
                 id = id.Substring(1);
             }
             // Ignore anything unknown (e.g. from a newer version) and duplicates
-            if (DefaultOrder.Contains(id) && items.All(x => x.Id != id))
+            if ((DefaultOrder.Contains(id) || IsSeparator(id)) && items.All(x => x.Id != id))
             {
                 items.Add(new Item(id, visible));
             }

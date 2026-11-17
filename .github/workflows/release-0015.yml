@@ -1,8 +1,8 @@
-name: NAPS2 Nicy-0014 release
+name: NAPS2 Nicy-0015 release
 
 on:
   push:
-    branches: [chatgpt-0014]
+    branches: [chatgpt-0015]
   workflow_dispatch:
 
 permissions:
@@ -44,11 +44,11 @@ jobs:
         run: |
           $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
           if ($null -eq $zip) { throw 'Portable archive not found' }
-          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0014-win-x64.zip'
+          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0015-win-x64.zip'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0014-release-portable
-          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0014-win-x64.zip
+          name: nicy-0015-release-portable
+          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0015-win-x64.zip
           if-no-files-found: error
 
   installer:
@@ -71,17 +71,17 @@ jobs:
           }
           if (-not (Test-Path -LiteralPath $iscc)) { throw 'ISCC.exe not found' }
       - name: Build unsigned installer
-        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0014 --nosign -v
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0015 --nosign -v
       - name: Name release installer
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0014.exe' -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0015.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'Installer not found' }
-          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0014-Setup-win-x64.exe'
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0015-Setup-win-x64.exe'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0014-release-installer
-          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0014-Setup-win-x64.exe
+          name: nicy-0015-release-installer
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0015-Setup-win-x64.exe
           if-no-files-found: error
 
   publish:
@@ -104,19 +104,19 @@ jobs:
           }
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0014-release-portable
+          name: nicy-0015-release-portable
           path: dist
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0014-release-installer
+          name: nicy-0015-release-installer
           path: dist
       - name: Prepare release assets
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0014-win-x64.zip' -print -quit)"
-          installer="$(find dist -type f -name 'NAPS2-Nicy-0014-Setup-win-x64.exe' -print -quit)"
+          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0015-win-x64.zip' -print -quit)"
+          installer="$(find dist -type f -name 'NAPS2-Nicy-0015-Setup-win-x64.exe' -print -quit)"
           test -n "$portable" && test -s "$portable"
           test -n "$installer" && test -s "$installer"
           cp "$portable" release-assets/
@@ -130,25 +130,25 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if gh release view nicy-0014 >/dev/null 2>&1; then
+          if gh release view nicy-0015 >/dev/null 2>&1; then
             # Release might already have been created by another successful run.
             # Replace its assets with those from the newest commit.
-            gh release upload nicy-0014 \
-              release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
-              release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
+            gh release upload nicy-0015 \
+              release-assets/NAPS2-ChatGPT-0015-win-x64.zip \
+              release-assets/NAPS2-Nicy-0015-Setup-win-x64.exe \
               release-assets/Naps2VanillaSettings.ps1 \
               release-assets/Naps2VanillaSettings.cmd \
               --clobber
-            gh release edit nicy-0014 --title "NAPS2 Nicy-0014" \
-              --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
+            gh release edit nicy-0015 --title "NAPS2 Nicy-0015" \
+              --notes "Unofficial Windows x64 NAPS2 build. Adds a standalone preview toolbar editor, custom separators and rapid item movement. Backup script now requires typing a choice followed by Enter. Previous redaction and extraction fixes remain. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
           else
-            gh release create nicy-0014 \
-              release-assets/NAPS2-ChatGPT-0014-win-x64.zip \
-              release-assets/NAPS2-Nicy-0014-Setup-win-x64.exe \
+            gh release create nicy-0015 \
+              release-assets/NAPS2-ChatGPT-0015-win-x64.zip \
+              release-assets/NAPS2-Nicy-0015-Setup-win-x64.exe \
               release-assets/Naps2VanillaSettings.ps1 \
               release-assets/Naps2VanillaSettings.cmd \
               --target "$RELEASE_SHA" \
-              --title "NAPS2 Nicy-0014" \
+              --title "NAPS2 Nicy-0015" \
               --notes "Unofficial Windows x64 NAPS2 build. Removes Nicy/ChatGPT diagnostics; original NAPS2 logging is unchanged. Includes preview single-page extraction and redaction fixes. The installer is unsigned. Backup your settings before installation with the included Naps2VanillaSettings.cmd and .ps1 files (put both in one folder)."
           fi
 

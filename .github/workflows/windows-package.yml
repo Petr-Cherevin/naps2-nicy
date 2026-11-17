@@ -1,9 +1,9 @@
-name: ChatGPT-0014 Windows portable
+name: ChatGPT-0015 Windows portable
 
-# Build the Windows x64 portable package from the ChatGPT-0014 branch without changing Claude's branch.
+# Build the Windows x64 portable package from the ChatGPT-0015 branch without changing Claude's branch.
 on:
   push:
-    branches: [chatgpt-0014]
+    branches: [chatgpt-0015]
   workflow_dispatch:
 
 jobs:
@@ -25,10 +25,10 @@ jobs:
       run: |
         $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
         if ($null -eq $zip) { throw 'No portable zip found' }
-        Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0014-win-x64.zip'
+        Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0015-win-x64.zip'
     - name: Upload portable zip
       uses: actions/upload-artifact@v6
       with:
-        name: NAPS2-ChatGPT-0014-win-x64
-        path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0014-win-x64.zip
+        name: NAPS2-ChatGPT-0015-win-x64
+        path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0015-win-x64.zip
         if-no-files-found: error

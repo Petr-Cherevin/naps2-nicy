@@ -30,6 +30,67 @@ public class PreviewToolbarLayoutTests
     }
 
     [Fact]
+    public void CustomSeparatorsRoundTripWithOrderAndVisibility()
+    {
+        var items = PreviewToolbarLayout.Parse("");
+        var first = PreviewToolbarLayout.NewSeparatorId(items);
+        items.Insert(3, new PreviewToolbarLayout.Item(first, true));
+        var second = PreviewToolbarLayout.NewSeparatorId(items);
+        items.Insert(4, new PreviewToolbarLayout.Item(second, false));
+
+        var encoded = PreviewToolbarLayout.Serialize(items);
+        var reparsed = PreviewToolbarLayout.Parse(encoded);
+
+        Assert.Equal("sep7", first);
+        Assert.Equal("sep8", second);
+        Assert.Equal(items, reparsed);
+        Assert.False(reparsed.Single(x => x.Id == second).Visible);
+        Assert.Equal(first, PreviewToolbarLayout.NewSeparatorId(
+            reparsed.Where(x => x.Id != first)));
+    }
+
+    [Fact]
+    public void CustomSeparatorsCollapseAtEdgesAndWhenAdjacent()
+    {
+        var items = new List<PreviewToolbarLayout.Item>
+        {
+            new("sep9", true),
+            new(PreviewToolbarLayout.Previous, true),
+            new("sep7", true),
+            new("sep8", true),
+            new(PreviewToolbarLayout.Next, true),
+            new("sep10", true)
+        };
+        Assert.Equal(new[] { PreviewToolbarLayout.Previous, "sep7", PreviewToolbarLayout.Next },
+            PreviewToolbarLayout.GetDisplayedIds(items));
+    }
+
+    [Fact]
+    public void RemovedBuiltInSeparatorStaysHiddenAfterRoundTrip()
+    {
+        // The editor represents deletion of a built-in separator as a
+        // hidden record so the default merger never restores it.
+        var items = PreviewToolbarLayout.Parse("");
+        items.RemoveAll(x => x.Id == "sep3");
+        items.Add(new PreviewToolbarLayout.Item("sep3", false));
+        var encoded = PreviewToolbarLayout.Serialize(items);
+        var reparsed = PreviewToolbarLayout.Parse(encoded);
+
+        Assert.False(reparsed.Single(x => x.Id == "sep3").Visible);
+        Assert.DoesNotContain("sep3", PreviewToolbarLayout.GetDisplayedIds(reparsed));
+    }
+
+    [Fact]
+    public void InvalidOrDuplicateSeparatorIdsAreNotLoaded()
+    {
+        var parsed = PreviewToolbarLayout.Parse("sep7,sep7,sep0,sepbad,sep999999999999999999,-sep8");
+        Assert.Equal(1, parsed.Count(x => x.Id == "sep7"));
+        Assert.Contains(parsed, x => x.Id == "sep8" && !x.Visible);
+        Assert.DoesNotContain(parsed, x => x.Id == "sep0");
+        Assert.DoesNotContain(parsed, x => x.Id == "sepbad");
+    }
+
+    [Fact]
     public void RoundTrip()
     {
         var items = PreviewToolbarLayout.Parse("");
