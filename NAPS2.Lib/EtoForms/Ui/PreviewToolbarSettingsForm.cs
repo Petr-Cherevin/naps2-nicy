@@ -118,6 +118,7 @@ internal sealed class PreviewToolbarSettingsForm : EtoDialogBase
             L.Row(
                 _grid.NaturalSize(400, 430).Scale(),
                 L.Column(
+                    new LayoutControl(null).Width(175),
                     _moveUp,
                     _moveDown,
                     _moveStart,
@@ -125,7 +126,7 @@ internal sealed class PreviewToolbarSettingsForm : EtoDialogBase
                     _showHide,
                     _addSeparator,
                     _deleteSeparator
-                ).MinWidth(175)
+                )
             ).Scale(),
             L.Row(
                 C.Filler(),
