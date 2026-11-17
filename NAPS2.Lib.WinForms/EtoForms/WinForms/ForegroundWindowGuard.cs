@@ -3,10 +3,10 @@ using System.Runtime.InteropServices;
 namespace NAPS2.EtoForms.WinForms;
 
 /// <summary>
-/// Used only to avoid moving keyboard focus into the main window when the user
+/// Avoid moving keyboard focus into the main window when the user
 /// has already switched to another application during NAPS2 startup.
 /// </summary>
-internal static class WindowStartupDiagnostics
+internal static class ForegroundWindowGuard
 {
     [DllImport("user32.dll")]
     private static extern nint GetForegroundWindow();

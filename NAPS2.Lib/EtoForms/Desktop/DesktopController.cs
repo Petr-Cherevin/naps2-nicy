@@ -355,28 +355,17 @@ public class DesktopController
 
     public void ImportFiles(ICollection<string> files, bool background = false, bool fromDrop = false)
     {
-        DiagnosticLog.Write("Import", $"Start method={(fromDrop ? "drop" : background ? "background" : "menu")} fileCount={files.Count}");
         var op = _operationFactory.Create<ImportOperation>();
         Interlocked.Increment(ref _activeFileImports);
         ImportActivityChanged?.Invoke(this, EventArgs.Empty);
-        op.StatusChanged += (_, _) =>
-        {
-            var status = op.Status;
-            if (status != null)
-            {
-                DiagnosticLog.Write("ImportProgress", $"current={status.CurrentProgress} max={status.MaxProgress}");
-            }
-        };
         op.Finished += (_, _) =>
         {
-            DiagnosticLog.Write("Import", $"Finished method={(fromDrop ? "drop" : "other")}");
             Interlocked.Decrement(ref _activeFileImports);
             ImportActivityChanged?.Invoke(this, EventArgs.Empty);
         };
         if (op.Start(OrderFiles(files), WithAutoRecognize(_desktopImagesController.ReceiveScannedImage(), op),
                 new ImportParams { ThumbnailSize = _thumbnailController.RenderSize }))
         {
-            DiagnosticLog.Write("Import", "Operation started; showing progress");
             if (background)
             {
                 _operationProgress.ShowBackgroundProgress(op);

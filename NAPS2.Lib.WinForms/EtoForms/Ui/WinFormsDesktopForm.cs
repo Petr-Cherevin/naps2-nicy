@@ -100,10 +100,8 @@ public class WinFormsDesktopForm : DesktopForm
             scale => _toolbarFormatter.RelayoutToolbar(_mainToolStrip, scale));
         // Do not try to focus a child of a background window during its first show.
         // The foreground belongs to another application in the failing taskbar scenario.
-        if (WindowStartupDiagnostics.IsOurProcessForeground())
+        if (ForegroundWindowGuard.IsOurProcessForeground())
             NativeListView.Focus();
-        else
-            DiagnosticLog.Write("TaskbarFocus", "initial-list-focus-skipped other-app-foreground");
         base.OnShown(e);
     }
 

@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using NAPS2.EtoForms;
 
 namespace NAPS2.EtoForms.WinForms;
 
@@ -60,33 +59,33 @@ internal sealed class TaskbarRegistration
     {
         _form = form;
         _messageHook = new TaskbarMessageHook(OnTaskbarCreated);
-        _retryTimer.Tick += (_, _) => TryRegister("retry");
+        _retryTimer.Tick += (_, _) => TryRegister();
 
         _form.HandleCreated += (_, _) =>
         {
             if (_closed) return;
             if (_messageHook.Handle != 0) _messageHook.ReleaseHandle();
             _messageHook.AssignHandle(_form.Handle);
-            if (_shown) QueueRegister("handle-recreated");
+            if (_shown) QueueRegister();
         };
         _form.HandleDestroyed += (_, _) =>
         {
             // Removing the old HWND prevents a stale entry on handle recreation.
-            Unregister("handle-destroyed");
+            Unregister();
             if (_messageHook.Handle != 0) _messageHook.ReleaseHandle();
         };
         _form.Shown += (_, _) =>
         {
             _shown = true;
             // Preserve the working 0008 timing: queue AddTab after Show completes.
-            QueueRegister("initial-show");
+            QueueRegister();
         };
         _form.FormClosed += (_, _) =>
         {
             _closed = true;
             _retryTimer.Stop();
             _retryTimer.Dispose();
-            Unregister("form-closed");
+            Unregister();
             if (_messageHook.Handle != 0) _messageHook.ReleaseHandle();
         };
         if (_form.IsHandleCreated)
@@ -99,11 +98,10 @@ internal sealed class TaskbarRegistration
         // discarded previously added taskbar entries.
         _registeredWindow = 0;
         _registeredTaskbar = 0;
-        DiagnosticLog.Write("Taskbar", "event=TaskbarCreated reRegister=True");
-        if (_shown) QueueRegister("taskbar-created");
+        if (_shown) QueueRegister();
     }
 
-    private void QueueRegister(string reason)
+    private void QueueRegister()
     {
         if (_closed || _queued || !_form.IsHandleCreated) return;
         _queued = true;
@@ -112,7 +110,7 @@ internal sealed class TaskbarRegistration
             _form.BeginInvoke((Action)(() =>
             {
                 _queued = false;
-                TryRegister(reason);
+                TryRegister();
             }));
         }
         catch (InvalidOperationException)
@@ -122,7 +120,7 @@ internal sealed class TaskbarRegistration
         }
     }
 
-    private void TryRegister(string reason)
+    private void TryRegister()
     {
         if (_closed || _form.IsDisposed || !_form.IsHandleCreated || !_form.Visible)
             return;
@@ -143,8 +141,6 @@ internal sealed class TaskbarRegistration
         try
         {
             int hr = CallShell(hwnd, add: true);
-            DiagnosticLog.Write("Taskbar",
-                $"action=AddTab reason={reason} hwnd=0x{hwnd.ToInt64():X} hr=0x{hr:X8}");
             if (hr >= 0)
             {
                 _registeredWindow = hwnd;
@@ -156,14 +152,13 @@ internal sealed class TaskbarRegistration
                 _retryTimer.Start();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            DiagnosticLog.Write("Taskbar", $"action=AddTab error={ex.GetType().Name}");
             _retryTimer.Start();
         }
     }
 
-    private void Unregister(string reason)
+    private void Unregister()
     {
         nint hwnd = _registeredWindow;
         _registeredWindow = 0;
@@ -173,13 +168,11 @@ internal sealed class TaskbarRegistration
 
         try
         {
-            int hr = CallShell(hwnd, add: false);
-            DiagnosticLog.Write("Taskbar",
-                $"action=DeleteTab reason={reason} hwnd=0x{hwnd.ToInt64():X} hr=0x{hr:X8}");
+            CallShell(hwnd, add: false);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            DiagnosticLog.Write("Taskbar", $"action=DeleteTab error={ex.GetType().Name}");
+            // A disappearing taskbar is harmless during window shutdown.
         }
     }
 

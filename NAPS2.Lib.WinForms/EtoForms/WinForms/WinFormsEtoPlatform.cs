@@ -307,13 +307,8 @@ public class WinFormsEtoPlatform : EtoPlatform
         // DesktopForm will apply the localized/profile-specific title in its constructor.
         if (window is NAPS2.EtoForms.Ui.DesktopForm)
         {
-            bool alreadyHadCaption = !string.IsNullOrEmpty(form.Text);
-            bool handleAlreadyCreated = form.IsHandleCreated;
-            if (!alreadyHadCaption)
+            if (string.IsNullOrEmpty(form.Text))
                 form.Text = "NAPS2";
-            DiagnosticLog.Write("TaskbarInit",
-                $"captionSeeded={!alreadyHadCaption} handleAlreadyCreated={handleAlreadyCreated} " +
-                $"captionLength={form.Text.Length} showInTaskbar={form.ShowInTaskbar}");
         }
 
         bool isRtl = CultureInfo.CurrentCulture.TextInfo.IsRightToLeft;

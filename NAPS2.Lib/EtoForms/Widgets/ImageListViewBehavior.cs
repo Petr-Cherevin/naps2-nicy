@@ -1,6 +1,5 @@
 using Eto.Drawing;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using Eto.Forms;
@@ -27,8 +26,6 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
     private int _importActive;
     private int _resultsGeneration;
     private int _refreshWorkerRunning;
-    private long _badgeChecks;
-    private long _badgeChanges;
 
     public void SetImportActive(bool active)
     {
@@ -184,13 +181,11 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                         }
                     }
                     if (audited != 0) StartWorker();
-                    DiagnosticLog.Write("Badge",
-                        $"refresh generation={observed} audited={audited} queue={_pending.Count}");
                 } while (observed != Volatile.Read(ref _resultsGeneration));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                DiagnosticLog.Write("Badge", $"refreshError={ex.GetType().Name}");
+                // Badge refreshes are best-effort; retry on the next status change.
             }
             finally
             {
@@ -220,14 +215,11 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                 {
                     if (item.IsDisposed) continue;
                     // The page might have been modified while waiting; stale results are ignored below.
-                    var timer = Stopwatch.StartNew();
                     PageTextStatus? previous;
                     lock (entry) previous = entry.Status;
                     var result = previous is { } old
                         ? _pageTextStatusProvider.GetStatusAfterOcrChange(item, old)
                         : _pageTextStatusProvider.GetStatus(item);
-                    timer.Stop();
-                    var checkedCount = Interlocked.Increment(ref _badgeChecks);
                     bool changed = false;
                     lock (entry)
                     {
@@ -240,13 +232,8 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                     }
                     if (changed)
                     {
-                        Interlocked.Increment(ref _badgeChanges);
                         BadgesChanged?.Invoke(this, EventArgs.Empty);
                     }
-                    if (timer.ElapsedMilliseconds >= 150 || checkedCount % 100 == 0)
-                        DiagnosticLog.Write("BadgeStatus",
-                            $"checkMs={timer.ElapsedMilliseconds} changed={changed} " +
-                            $"checks={checkedCount} changes={Volatile.Read(ref _badgeChanges)} pending={_pending.Count}");
                 }
                 catch (Exception ex)
                 {
@@ -256,7 +243,6 @@ public class ImageListViewBehavior : ListViewBehavior<UiImage>
                         if (Equals(entry.State, state) && entry.Language == language)
                             entry.Pending = false;
                     }
-                    DiagnosticLog.Write("Badge", $"workerError={ex.GetType().Name}");
                 }
             }
             Interlocked.Exchange(ref _workerRunning, 0);

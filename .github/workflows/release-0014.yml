@@ -1,0 +1,116 @@
+name: NAPS2 Nicy-0014 release
+
+on:
+  push:
+    branches: [chatgpt-0014]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install OS dependencies
+        run: sudo apt-get install -y fonts-liberation2 fonts-noto-core fonts-noto-cjk
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Build
+        run: dotnet run --project NAPS2.Tools -- build debug -v
+      - name: Test
+        run: dotnet run --project NAPS2.Tools -- test -v --nogui
+
+  portable:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Build Portable ZIP
+        run: dotnet run --project NAPS2.Tools -- pkg zip -p win64 --nosign -v
+      - name: Name release archive
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
+          if ($null -eq $zip) { throw 'Portable archive not found' }
+          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0014-win-x64.zip'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nicy-0014-release-portable
+          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0014-win-x64.zip
+          if-no-files-found: error
+
+  installer:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Install Inno Setup 7
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files\Inno Setup 7\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            winget install --id JRSoftware.InnoSetup.7 --exact --source winget --scope machine --silent --accept-source-agreements --accept-package-agreements --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed: $LASTEXITCODE" }
+          }
+          if (-not (Test-Path -LiteralPath $iscc)) { throw 'ISCC.exe not found' }
+      - name: Build unsigned installer
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0014 --nosign -v
+      - name: Name release installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0014.exe' -Recurse | Select-Object -First 1
+          if ($null -eq $exe) { throw 'Installer not found' }
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0014-Setup-win-x64.exe'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nicy-0014-release-installer
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0014-Setup-win-x64.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [verify, portable, installer]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: nicy-0014-release-portable
+          path: dist
+      - uses: actions/download-artifact@v6
+        with:
+          name: nicy-0014-release-installer
+          path: dist
+      - name: Verify release assets
+        run: |
+          test -s dist/NAPS2-ChatGPT-0014-win-x64.zip
+          test -s dist/NAPS2-Nicy-0014-Setup-win-x64.exe
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          gh release create nicy-0014 \
+            dist/NAPS2-ChatGPT-0014-win-x64.zip \
+            dist/NAPS2-Nicy-0014-Setup-win-x64.exe \
+            --target "$RELEASE_SHA" \
+            --title "NAPS2 Nicy-0014" \
+            --notes "Unofficial Windows x64 build of NAPS2. Removes custom ChatGPT/Nicy Diagnostics logging while keeping upstream NAPS2 logging. Includes preview page extraction and redaction updates. The EXE installer is unsigned. Back up %APPDATA%\\NAPS2 before replacing your installed NAPS2."
