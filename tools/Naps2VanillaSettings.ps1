@@ -21,6 +21,34 @@ function Check-F12 {
     }
 }
 
+function Read-Confirmation([string] $PromptText) {
+    Write-Host -NoNewline $PromptText
+    $answer = [Text.StringBuilder]::new()
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::F12) {
+            throw [OperationCanceledException]::new('Операция остановлена клавишей F12.')
+        }
+        if ($key.Key -eq [ConsoleKey]::Escape) {
+            Write-Host ''
+            return ''
+        }
+        if ($key.Key -eq [ConsoleKey]::Enter) {
+            Write-Host ''
+            return $answer.ToString()
+        }
+        if ($key.Key -eq [ConsoleKey]::Backspace) {
+            if ($answer.Length -gt 0) {
+                $answer.Length -= 1
+                [Console]::Write(([string][char]8) + ' ' + ([string][char]8))
+            }
+        } elseif (-not [char]::IsControl($key.KeyChar)) {
+            [void]$answer.Append($key.KeyChar)
+            [Console]::Write($key.KeyChar)
+        }
+    }
+}
+
 function Assert-Closed {
     $running = @(Get-Process -ErrorAction SilentlyContinue |
         Where-Object { $_.ProcessName -match '^NAPS2($|\.)' })
@@ -54,7 +82,7 @@ function Save-VanillaSettings {
 
     if (Test-Path -LiteralPath $ArchiveFile) {
         Write-Host 'Архив уже существует. Его замена требует подтверждения.'
-        $answer = Read-Host 'Для замены введите ПЕРЕЗАПИСАТЬ'
+        $answer = Read-Confirmation 'Для замены введите ПЕРЕЗАПИСАТЬ: '
         if ($answer -ine 'ПЕРЕЗАПИСАТЬ') {
             Write-Host 'Отмена. Существующий архив сохранён.'
             return
@@ -138,7 +166,7 @@ function Restore-VanillaSettings {
     }
     Write-Host 'Текущие настройки NAPS2 будут заменены содержимым архива.'
     Write-Host 'Старые настройки сохранятся в отдельной папке на случай отката.'
-    $answer = Read-Host 'Для продолжения введите ВОССТАНОВИТЬ'
+    $answer = Read-Confirmation 'Для продолжения введите ВОССТАНОВИТЬ: '
     if ($answer -ine 'ВОССТАНОВИТЬ') {
         Write-Host 'Восстановление отменено.'
         return
