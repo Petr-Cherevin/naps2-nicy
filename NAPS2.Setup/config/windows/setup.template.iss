@@ -15,7 +15,7 @@ AppName={#AppLongName}
 AppVersion={#AppVersion}
 ; Preserve AppName (and thus Inno Setup implicit AppId) so this replaces the official install.
 ; Only the display label identifies this unsigned community build.
-AppVerName={#AppShortName} Nicy-0011 ({#AppVersionName})
+AppVerName={#AppShortName} Nicy-0012 ({#AppVersionName})
 AppPublisher={#AppCompany}
 AppPublisherURL=https://github.com/Petr-Cherevin/naps2-nicy
 AppSupportURL=https://github.com/Petr-Cherevin/naps2-nicy/issues
@@ -39,7 +39,7 @@ DefaultDirName={commonpf}\{#AppShortName}
 DefaultGroupName={#AppShortName}
 LicenseFile=..\license.rtf
 
-UninstallDisplayName={#AppShortName} Nicy-0011
+UninstallDisplayName={#AppShortName} Nicy-0012
 UninstallDisplayIcon={app}\{#ExeName}
 
 OutputDir=../publish/{#AppVersionName}

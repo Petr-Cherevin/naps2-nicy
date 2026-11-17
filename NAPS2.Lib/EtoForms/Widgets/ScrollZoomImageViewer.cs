@@ -41,6 +41,38 @@ public class ScrollZoomImageViewer
 
     public Bitmap? Image { get; set; }
 
+    /// <summary>
+    /// Swap the rendered bitmap while retaining the current zoom and scroll
+    /// position for edits that do not change the dimensions of the scan.
+    /// The caller must no longer dispose the previous bitmap.
+    /// </summary>
+    public void ReplaceImage(Bitmap nextImage, bool preserveViewport)
+    {
+        var previous = Image;
+        float zoom = _renderFactor;
+        Point scrollPosition = _scrollable.ScrollPosition;
+        Image = nextImage;
+        try
+        {
+            if (preserveViewport && previous != null && zoom > 0)
+            {
+                SetZoom(zoom);
+                _scrollable.ScrollPosition = scrollPosition;
+            }
+            else
+            {
+                ZoomToContainer();
+            }
+
+            // Repaint the bitmap even if the zoom and drawable size stayed the same.
+            _imageView.Invalidate();
+        }
+        finally
+        {
+            previous?.Dispose();
+        }
+    }
+
     public ColorScheme? ColorScheme { get; set; }
 
     public event EventHandler<ZoomChangedEventArgs>? ZoomChanged;

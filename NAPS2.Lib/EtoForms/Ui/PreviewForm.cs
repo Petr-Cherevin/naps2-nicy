@@ -34,6 +34,10 @@ public class PreviewForm : EtoDialogBase
     private readonly CheckToolItem _redactButton = new() { ToolTip = UiStrings.Redact };
     private readonly ButtonToolItem _redactColorButton = new() { ToolTip = UiStrings.RedactColor };
     private bool _redactMode;
+    // While the newly redacted bitmap is rendering, retain the covering
+    // rectangles so the old unredacted bitmap is never exposed.
+    private bool _redactionAppliedPendingRefresh;
+    private int _imageRefreshRevision;
     private UiImage? _currentImage;
 
     public PreviewForm(Naps2Config config, DesktopCommands desktopCommands, UiImageList imageList,
@@ -228,8 +232,16 @@ public class PreviewForm : EtoDialogBase
             }
             if (_currentImage != value)
             {
-                // Unapplied redaction rectangles only make sense for the image they were drawn on
-                ImageViewer.ClearSelectionRects();
+                // Cancel any in-flight render of a different page.
+                ++_imageRefreshRevision;
+                // If redaction was already committed, keep its visual covering
+                // until the replacement page has rendered; otherwise switching
+                // away could briefly expose the old unredacted bitmap.
+                if (!_redactionAppliedPendingRefresh)
+                {
+                    _redactButton.Enabled = true;
+                    ImageViewer.ClearSelectionRects();
+                }
             }
             _currentImage = value;
             UpdateImageIndex();
@@ -243,7 +255,7 @@ public class PreviewForm : EtoDialogBase
         // Keep unfinished redaction rectangles in place even when a background
         // thumbnail refresh invalidates the current image.
         if (HasPendingRedaction) return;
-        Invoker.Current.InvokeDispatch(() => UpdateImage().AssertNoAwait());
+        Invoker.Current.InvokeDispatch(() => UpdateImage(preserveViewport: true).AssertNoAwait());
     }
 
     protected int ImageIndex { get; private set; }
@@ -377,7 +389,10 @@ public class PreviewForm : EtoDialogBase
         RedactUndoCommand.Enabled = RedactApplyCommand.Enabled = HasPendingRedaction;
     }
 
-    private bool HasPendingRedaction => ImageViewer.SelectionRects.Count > 0;
+    // Once AddTransforms succeeds the rectangles are already committed; they
+    // only remain visible until the updated bitmap is ready for display.
+    private bool HasPendingRedaction =>
+        !_redactionAppliedPendingRefresh && ImageViewer.SelectionRects.Count > 0;
 
     /// <summary>
     /// Unapplied rectangles are only a preview and will not appear in exported
@@ -442,7 +457,18 @@ public class PreviewForm : EtoDialogBase
         // Only clear the preview once the mutation succeeds. If applying fails,
         // the user must still be able to retry or explicitly discard the rectangles.
         ImageList.Mutate(new ImageListMutation.AddTransforms(transforms), ListSelection.Of(CurrentImage));
-        EndRedaction();
+        // Invalidate earlier renders that may contain the original pixels.
+        ++_imageRefreshRevision;
+        _redactionAppliedPendingRefresh = true;
+        SetRedactMode(false);
+        // Do not allow another redaction to be drawn into an out-of-date bitmap
+        // while the already committed redaction is being rendered.
+        _redactButton.Enabled = false;
+        UpdateRedactCommands();
+        // Render the committed scan before removing the visual covering.
+        // A background thumbnail event may also trigger a render; the latest
+        // successful render is the one that completes this transition.
+        UpdateImage(preserveViewport: true).AssertNoAwait();
     }
 
     private void EndRedaction()
@@ -564,21 +590,47 @@ public class PreviewForm : EtoDialogBase
         }).ToEtoImage();
     }
 
-    private async Task UpdateImage()
+    private async Task UpdateImage(bool preserveViewport = false)
     {
         if (HasPendingRedaction) return;
-        using var imageToRender = CurrentImage.GetClonedImage();
-        using var rendered = await Task.Run(() => imageToRender.Render());
-        // A rectangle might have been drawn while the render was running.
-        // Never silently erase unfinished redaction on asynchronous refresh.
-        if (HasPendingRedaction) return;
-        ImageViewer.Image?.Dispose();
-        ImageViewer.Image = rendered.ToEtoImage();
-        ImageViewer.OutlineMode = Config.Get(c => c.RedactionOutlineMode);
-        ImageViewer.ZoomToContainer();
-        if (_textVisibility.IsVisible)
+        var page = CurrentImage;
+        int revision = ++_imageRefreshRevision;
+        try
         {
-            await RefreshText();
+            using var imageToRender = page.GetClonedImage();
+            using var rendered = await Task.Run(() => imageToRender.Render());
+            // Ignore renders of obsolete pages or the image state before a new
+            // redaction. Never discard rectangles added during an async render.
+            if (_previewClosed || CurrentImage != page ||
+                revision != _imageRefreshRevision || HasPendingRedaction)
+                return;
+
+            // Change the bitmap underneath the covering rectangles first.
+            // Only after that can we safely clear the old preview overlays.
+            ImageViewer.ReplaceImage(rendered.ToEtoImage(),
+                preserveViewport || _redactionAppliedPendingRefresh);
+            ImageViewer.OutlineMode = Config.Get(c => c.RedactionOutlineMode);
+            if (_redactionAppliedPendingRefresh)
+            {
+                _redactionAppliedPendingRefresh = false;
+                EndRedaction();
+                _redactButton.Enabled = true;
+            }
+            if (_textVisibility.IsVisible)
+            {
+                await RefreshText();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException("Could not refresh the preview image", ex);
+            if (_redactionAppliedPendingRefresh && !_previewClosed && CurrentImage == page)
+            {
+                // The underlying redaction has been committed. Keep the covering
+                // rectangles until the preview can be rendered again.
+                MessageBox.Show(this, RedactionWarningText.PreviewRefreshFailed,
+                    RedactionWarningText.Title, MessageBoxType.Warning);
+            }
         }
     }
 

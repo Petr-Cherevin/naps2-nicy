@@ -19,4 +19,8 @@ internal static class RedactionWarningText
     public static string Apply => Ru ? "Применить цензурирование" : "Apply redaction";
 
     public static string Discard => Ru ? "Продолжить без применения" : "Continue without applying";
+    
+    public static string PreviewRefreshFailed => Ru
+        ? "Цензурирование применено, но обновить изображение в окне просмотра не удалось. Закройте и снова откройте страницу; не полагайтесь на старое изображение в окне."
+        : "Redaction was applied, but the preview could not be refreshed. Reopen the page to see the updated scan; do not rely on the outdated preview.";
 }
