@@ -53,7 +53,7 @@ internal class AboutContent
         return L.Row(
             L.Column(new ImageView { Image = Icons.scanner_128.ToEtoImage() }).Padding(right: 4),
             L.Column(
-                C.NoWrap(BuildVariant.ProductName),
+                new TextBox { Text = $"{BuildVariant.ProductName} {BuildVariant.ReleaseNumber}", ReadOnly = true },
                 L.Row(
                     L.Column(
                         C.NoWrap(string.Format(MiscResources.Version, AssemblyHelper.Version)),

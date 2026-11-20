@@ -1,8 +1,8 @@
-name: NAPS2 Nicy-0017 release
+name: NAPS2 Nicy-0018 release
 
 on:
   push:
-    branches: [chatgpt-0017]
+    branches: [chatgpt-0018]
   workflow_dispatch:
 
 permissions:
@@ -44,11 +44,11 @@ jobs:
         run: |
           $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
           if ($null -eq $zip) { throw 'Portable archive not found' }
-          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0017-win-x64.zip'
+          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0018-win-x64.zip'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0017-release-portable
-          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0017-win-x64.zip
+          name: nicy-0018-release-portable
+          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0018-win-x64.zip
           if-no-files-found: error
 
   installer:
@@ -71,17 +71,17 @@ jobs:
           }
           if (-not (Test-Path -LiteralPath $iscc)) { throw 'ISCC.exe not found' }
       - name: Build unsigned installer
-        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0017 --nosign -v
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0018 --nosign -v
       - name: Name release installer
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0017.exe' -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0018.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'Installer not found' }
-          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0017-Setup-win-x64.exe'
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0018-Setup-win-x64.exe'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0017-release-installer
-          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0017-Setup-win-x64.exe
+          name: nicy-0018-release-installer
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0018-Setup-win-x64.exe
           if-no-files-found: error
 
   publish:
@@ -104,19 +104,19 @@ jobs:
           }
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0017-release-portable
+          name: nicy-0018-release-portable
           path: dist
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0017-release-installer
+          name: nicy-0018-release-installer
           path: dist
       - name: Prepare release assets
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0017-win-x64.zip' -print -quit)"
-          installer="$(find dist -type f -name 'NAPS2-Nicy-0017-Setup-win-x64.exe' -print -quit)"
+          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0018-win-x64.zip' -print -quit)"
+          installer="$(find dist -type f -name 'NAPS2-Nicy-0018-Setup-win-x64.exe' -print -quit)"
           test -n "$portable" && test -s "$portable"
           test -n "$installer" && test -s "$installer"
           cp "$portable" release-assets/
@@ -130,4 +130,4 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          gh release create nicy-0017 release-assets/NAPS2-ChatGPT-0017-win-x64.zip release-assets/NAPS2-Nicy-0017-Setup-win-x64.exe release-assets/Naps2VanillaSettings.cmd release-assets/Naps2VanillaSettings.ps1 --target "$RELEASE_SHA" --title "NAPS2 Nicy-0017" --notes "Публичная сборка Nicy для Windows x64. Внешние обработчики имени PDF подключаются отдельно через настройки PDF. В составе выпуска — portable ZIP, установщик и скрипты резервного копирования настроек."
+          gh release create nicy-0018 release-assets/NAPS2-ChatGPT-0018-win-x64.zip release-assets/NAPS2-Nicy-0018-Setup-win-x64.exe release-assets/Naps2VanillaSettings.cmd release-assets/Naps2VanillaSettings.ps1 --target "$RELEASE_SHA" --title "NAPS2 Nicy-0018" --notes "В разделе «О программе» указан номер Nicy 0018. Внешнему обработчику можно передать путь к готовому PDF. При ошибке обработчика в имя подставляется ОШИБКА!. Внешние обработчики имени PDF подключаются отдельно через настройки PDF. В составе выпуска — portable ZIP, установщик и скрипты резервного копирования настроек."

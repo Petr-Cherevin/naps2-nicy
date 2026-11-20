@@ -32,6 +32,9 @@ public class ExportController : IExportController
     public async Task<bool> SavePdf(ICollection<UiImage> uiImages, ISaveNotify notify)
     {
         using var images = GetSnapshots(uiImages);
+        if (UseDocumentInput())
+            return await SaveWithDocumentInput(images, uiImages, notify, DocumentAction.Save);
+
         if (!images.Any())
         {
             return false;
@@ -66,6 +69,9 @@ public class ExportController : IExportController
     public async Task<bool> ExtractPdf(ICollection<UiImage> uiImages, ISaveNotify notify)
     {
         using var images = GetSnapshots(uiImages);
+        if (UseDocumentInput())
+            return await SaveWithDocumentInput(images, uiImages, notify, DocumentAction.Extract);
+
         if (!images.Any())
         {
             return false;
@@ -77,7 +83,7 @@ public class ExportController : IExportController
         return await DoSavePdf(images, notify, savePath!);
     }
 
-    private async Task<string?> PdfName(IList<ProcessedImage> pages, ICollection<UiImage> selection, bool extract)
+    private async Task<string?> PdfName(IList<ProcessedImage> pages, ICollection<UiImage> selection, bool extract, string? document = null)
     {
         var settings = _config.Get(c => c.PdfSettings);
         var template = settings.DefaultFileName;
@@ -85,7 +91,7 @@ public class ExportController : IExportController
         var fallback = hasToken ? Path.Combine(Path.GetDirectoryName(template!) ?? "", UiStrings.ScanFileName + ".pdf") : template;
         if (extract) fallback = GetExtractDefaultPath(selection, fallback);
         if (!settings.ExternalNameEnabled || pages.Count == 0) return fallback;
-        var candidates = await ExternalPdfName.GetNames(settings, pages);
+        var candidates = await ExternalPdfName.GetNames(settings, pages, document);
         if (candidates.Count == 0) return fallback;
         int index = 0;
         if (candidates.Count > 1)
@@ -104,6 +110,85 @@ public class ExportController : IExportController
         string leaf = hasToken ? Path.GetFileName(template!).Replace(ExternalPdfName.Token, candidates[index]) : candidates[index];
         if (!leaf.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) leaf += ".pdf";
         return Path.Combine(directory, leaf);
+    }
+
+    private enum DocumentAction { Save, Extract, Mixed }
+
+    private bool UseDocumentInput()
+    {
+        var settings = _config.Get(c => c.PdfSettings);
+        return settings.ExternalNameEnabled && settings.ExternalInput == "document";
+    }
+
+    private async Task<bool> SaveWithDocumentInput(IList<ProcessedImage> images, ICollection<UiImage> selection,
+        ISaveNotify notify, DocumentAction action)
+    {
+        if (images.Count == 0) return false;
+        var settings = _config.Get(c => c.PdfSettings);
+        var state = _imageList.CurrentState;
+        var groups = settings.SinglePagePdfs ? images.Select(p => new[] { p }).ToArray() : new[] { images.ToArray() };
+        var folder = Directory.CreateTempSubdirectory("naps2-");
+        var firstPath = (string?)null;
+        try
+        {
+            for (int i = 0; i < groups.Length; i++)
+            {
+                string temp = Path.Combine(folder.FullName, "document.pdf");
+                if (!(await RunSavePdfOperation(temp, groups[i])).Success) return false;
+                var subset = groups.Length == 1 ? selection : selection.Skip(i).Take(1).ToArray();
+                var suggested = await PdfName(groups[i], subset, action == DocumentAction.Extract, temp);
+                var path = GetDefaultPath(suggested, subset, true);
+                bool automatic = action != DocumentAction.Extract && settings.SkipSavePrompt && Path.IsPathRooted(path);
+                if (!automatic)
+                {
+                    if (action == DocumentAction.Mixed && i == 0)
+                    {
+                        if (!_dialogHelper.PromptToSavePdfOrImage(path, out path)) return false;
+                        if (!string.Equals(Path.GetExtension(path), ".pdf", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!await DoSaveImages(images, notify, path!)) return false;
+                            MaybeDeleteAfterSaving(selection);
+                            return true;
+                        }
+                    }
+                    else if (!_dialogHelper.PromptToSavePdf(path, out path)) return false;
+                }
+
+                var context = new NameContext { DateTime = DateTime.Now,
+                    Numbering = automatic ? Numbering.OnConflict : Numbering.Placeholder };
+                using var reservation = _nameManager.Reserve(path!, context);
+                var destination = Path.GetFullPath(reservation.Name);
+                var directory = Path.GetDirectoryName(destination)!;
+                Directory.CreateDirectory(directory);
+                var staging = Path.Combine(directory, Path.GetRandomFileName());
+                try
+                {
+                    // Cross-volume moves may copy. Only the completed local file gets the final name.
+                    await Task.Run(() => File.Move(temp, staging));
+                    File.Move(staging, destination, !automatic);
+                }
+                finally
+                {
+                    File.Delete(staging);
+                }
+                firstPath ??= destination;
+            }
+            _imageList.MarkSaved(state, images);
+            notify.PdfSaved(firstPath!);
+            if (action != DocumentAction.Extract) MaybeDeleteAfterSaving(selection);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException(MiscResources.ErrorSaving, ex);
+            Eto.Forms.MessageBox.Show(ex.Message);
+            return false;
+        }
+        finally
+        {
+            try { folder.Delete(true); }
+            catch (IOException ex) { Log.ErrorException("Temporary PDF cleanup failed", ex); }
+        }
     }
 
     private string GetExtractDefaultPath(ICollection<UiImage> uiImages, string? fallback)
@@ -170,6 +255,9 @@ public class ExportController : IExportController
     {
         // Note this path bypasses some of the pdf/image save options (e.g. default file name)
         using var images = GetSnapshots(uiImages);
+        if (UseDocumentInput())
+            return await SaveWithDocumentInput(images, uiImages, notify, DocumentAction.Mixed);
+
 
         string savePath;
         var pdfDefaultFileName = await PdfName(images, uiImages, false);

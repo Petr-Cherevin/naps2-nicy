@@ -19,13 +19,14 @@ internal sealed class ExternalNameForm : EtoDialogBase
         _arguments.Text = args ?? "";
         _input.Items.Add(LabelFor("Значение QR-кода", "QR code value"));
         _input.Items.Add(LabelFor("Количество сохраняемых страниц", "Number of pages being saved"));
-        _input.SelectedIndex = input == "page-count" ? 1 : 0;
+        _input.Items.Add(LabelFor("Сохраняемый документ", "Document being saved"));
+        _input.SelectedIndex = input switch { "page-count" => 1, "document" => 2, _ => 0 };
     }
 
     public bool Accepted { get; private set; }
     public string ProgramPath => _program.Text.Trim();
     public string Arguments => _arguments.Text;
-    public string Input => _input.SelectedIndex == 1 ? "page-count" : "qr";
+    public string Input => _input.SelectedIndex switch { 1 => "page-count", 2 => "document", _ => "qr" };
 
     private void Browse(bool script)
     {

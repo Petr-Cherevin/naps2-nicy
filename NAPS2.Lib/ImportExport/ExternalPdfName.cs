@@ -12,18 +12,19 @@ internal static class ExternalPdfName
 {
     internal const string Token = "$(external)";
 
-    internal static async Task<List<string>> GetNames(PdfSettings settings, IList<ProcessedImage> pages)
+    internal static async Task<List<string>> GetNames(PdfSettings settings, IList<ProcessedImage> pages, string? document)
     {
         var names = new List<string>();
-        if (!settings.ExternalNameEnabled || !Path.IsPathFullyQualified(settings.ExternalProgram ?? "") ||
-            !File.Exists(settings.ExternalProgram)) return names;
+        if (!settings.ExternalNameEnabled) return names;
         try
         {
-            var inputs = settings.ExternalInput == "page-count"
+            var inputs = document != null ? new[] { document } : settings.ExternalInput == "page-count"
                 ? new[] { pages.Count.ToString(CultureInfo.InvariantCulture) }
                 : await Task.Run(() => ReadCodes(pages));
             foreach (var input in inputs)
             {
+                if (!Path.IsPathFullyQualified(settings.ExternalProgram ?? "") || !File.Exists(settings.ExternalProgram))
+                    throw new FileNotFoundException(settings.ExternalProgram);
                 var name = await Run(settings, input);
                 if (name != null && !names.Contains(name, StringComparer.OrdinalIgnoreCase))
                     names.Add(name);
@@ -32,6 +33,8 @@ internal static class ExternalPdfName
         catch (Exception ex)
         {
             Log.ErrorException("External PDF naming failed", ex);
+            Eto.Forms.MessageBox.Show(ex.Message);
+            return new List<string> { "ОШИБКА!" };
         }
         return names;
     }
@@ -54,6 +57,7 @@ internal static class ExternalPdfName
             StartInfo = new ProcessStartInfo(settings.ExternalProgram!, settings.ExternalArguments ?? "")
             {
                 UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardError = true, StandardErrorEncoding = Encoding.UTF8,
                 RedirectStandardInput = true, RedirectStandardOutput = true,
                 StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8
             }
@@ -62,23 +66,38 @@ internal static class ExternalPdfName
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         try
         {
+            var diagnostic = ReadDiagnostic(process.StandardError, timeout.Token);
             var output = ReadName(process.StandardOutput, timeout.Token);
             await process.StandardInput.WriteAsync(input.AsMemory(), timeout.Token);
             process.StandardInput.Close();
             var value = await output;
             await process.WaitForExitAsync(timeout.Token);
-            if (process.ExitCode != 0 || value.Length == 0 || value is "." or ".." ||
+            var reason = await diagnostic;
+            if (process.ExitCode != 0)
+                throw new InvalidDataException(reason.Length > 0 ? reason : $"Exit code {process.ExitCode}");
+            if (value.Length == 0) return null;
+            if (value is "." or ".." ||
                 value.EndsWith('.') || value.Any(char.IsControl) ||
                 value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
                 value.IndexOfAny("<>:\"/\\|?*%$".ToCharArray()) >= 0 ||
                 Regex.IsMatch(value, @"^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)", RegexOptions.IgnoreCase))
-                return null;
+                throw new InvalidDataException("Invalid PDF file name");
             return value;
         }
         finally
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
         }
+    }
+
+    private static async Task<string> ReadDiagnostic(StreamReader reader, CancellationToken token)
+    {
+        var message = new StringBuilder();
+        var buffer = new char[1024];
+        int count;
+        while ((count = await reader.ReadAsync(buffer.AsMemory(), token)) != 0)
+            message.Append(buffer, 0, Math.Min(count, 2048 - message.Length));
+        return message.ToString().Trim();
     }
 
     private static async Task<string> ReadName(StreamReader output, CancellationToken token)
