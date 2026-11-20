@@ -1,0 +1,134 @@
+name: NAPS2 Nicy-0016 release
+
+on:
+  push:
+    branches: [chatgpt-0016]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install OS dependencies
+        run: sudo apt-get install -y fonts-liberation2 fonts-noto-core fonts-noto-cjk
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Build
+        run: dotnet run --project NAPS2.Tools -- build debug -v
+      - name: Test
+        run: dotnet run --project NAPS2.Tools -- test -v --nogui
+
+  portable:
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Build Portable ZIP
+        run: dotnet run --project NAPS2.Tools -- pkg zip -p win64 --nosign -v
+      - name: Name release archive
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
+          if ($null -eq $zip) { throw 'Portable archive not found' }
+          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0016-win-x64.zip'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nicy-0016-release-portable
+          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0016-win-x64.zip
+          if-no-files-found: error
+
+  installer:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            10.0.x
+            11.0.x
+      - name: Install Inno Setup 7
+        shell: pwsh
+        run: |
+          $iscc = 'C:\Program Files\Inno Setup 7\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            winget install --id JRSoftware.InnoSetup.7 --exact --source winget --scope machine --silent --accept-source-agreements --accept-package-agreements --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup installation failed: $LASTEXITCODE" }
+          }
+          if (-not (Test-Path -LiteralPath $iscc)) { throw 'ISCC.exe not found' }
+      - name: Build unsigned installer
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0016 --nosign -v
+      - name: Name release installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0016.exe' -Recurse | Select-Object -First 1
+          if ($null -eq $exe) { throw 'Installer not found' }
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0016-Setup-win-x64.exe'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: nicy-0016-release-installer
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0016-Setup-win-x64.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [verify, portable, installer]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate vanilla settings script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            'tools/Naps2VanillaSettings.ps1', [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_.Message }
+            throw 'Settings PowerShell script has syntax errors'
+          }
+      - uses: actions/download-artifact@v6
+        with:
+          name: nicy-0016-release-portable
+          path: dist
+      - uses: actions/download-artifact@v6
+        with:
+          name: nicy-0016-release-installer
+          path: dist
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0016-win-x64.zip' -print -quit)"
+          installer="$(find dist -type f -name 'NAPS2-Nicy-0016-Setup-win-x64.exe' -print -quit)"
+          test -n "$portable" && test -s "$portable"
+          test -n "$installer" && test -s "$installer"
+          cp "$portable" release-assets/
+          cp "$installer" release-assets/
+          cp tools/Naps2VanillaSettings.ps1 tools/Naps2VanillaSettings.cmd release-assets/
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o release-assets/QrName.exe tools/QrName/main.go
+          ls -lh release-assets/
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh release create nicy-0016 release-assets/* --target "$RELEASE_SHA" --title "NAPS2 Nicy-0016" --notes-file tools/QrName/Release.md

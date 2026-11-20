@@ -38,7 +38,7 @@ public class ExportController : IExportController
         }
 
         string savePath;
-        var defaultFileName = _config.Get(c => c.PdfSettings.DefaultFileName);
+        var defaultFileName = await PdfName(images, uiImages, false);
         if (_config.Get(c => c.PdfSettings.SkipSavePrompt) && Path.IsPathRooted(defaultFileName))
         {
             savePath = defaultFileName!;
@@ -70,14 +70,43 @@ public class ExportController : IExportController
         {
             return false;
         }
-        if (!_dialogHelper.PromptToSavePdf(GetExtractDefaultPath(uiImages), out var savePath))
+        if (!_dialogHelper.PromptToSavePdf(await PdfName(images, uiImages, true), out var savePath))
         {
             return false;
         }
         return await DoSavePdf(images, notify, savePath!);
     }
 
-    private string GetExtractDefaultPath(ICollection<UiImage> uiImages)
+    private async Task<string?> PdfName(IList<ProcessedImage> pages, ICollection<UiImage> selection, bool extract)
+    {
+        var settings = _config.Get(c => c.PdfSettings);
+        var template = settings.DefaultFileName;
+        var hasToken = template?.Contains(ExternalPdfName.Token) == true;
+        var fallback = hasToken ? Path.Combine(Path.GetDirectoryName(template!) ?? "", UiStrings.ScanFileName + ".pdf") : template;
+        if (extract) fallback = GetExtractDefaultPath(selection, fallback);
+        if (!settings.ExternalNameEnabled || pages.Count == 0) return fallback;
+        var candidates = await ExternalPdfName.GetNames(settings, pages);
+        if (candidates.Count == 0) return fallback;
+        int index = 0;
+        if (candidates.Count > 1)
+        {
+            var choice = new ChoiceForm(_config)
+            {
+                Title = UiStrings.FileNameLabel,
+                Message = ExternalNameForm.LabelFor("Выберите имя для PDF", "Select a PDF name"),
+                Choices = candidates
+            };
+            choice.ShowModal();
+            if (choice.SelectedChoice is not int selected) return fallback;
+            index = selected;
+        }
+        string directory = Path.GetDirectoryName(template ?? fallback ?? "") ?? "";
+        string leaf = hasToken ? Path.GetFileName(template!).Replace(ExternalPdfName.Token, candidates[index]) : candidates[index];
+        if (!leaf.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) leaf += ".pdf";
+        return Path.Combine(directory, leaf);
+    }
+
+    private string GetExtractDefaultPath(ICollection<UiImage> uiImages, string? fallback)
     {
         var allImages = _imageList.Images;
         var pageNumbers = uiImages.Select(x => allImages.IndexOf(x) + 1).Where(x => x > 0);
@@ -87,7 +116,7 @@ public class ExportController : IExportController
         var basePath = GetDefaultPath(null, uiImages, null);
         if (string.IsNullOrEmpty(basePath))
         {
-            basePath = _config.Get(c => c.PdfSettings.DefaultFileName);
+            basePath = fallback;
         }
         string folder = "";
         string baseName = UiStrings.ScanFileName;
@@ -143,7 +172,7 @@ public class ExportController : IExportController
         using var images = GetSnapshots(uiImages);
 
         string savePath;
-        var pdfDefaultFileName = _config.Get(c => c.PdfSettings.DefaultFileName);
+        var pdfDefaultFileName = await PdfName(images, uiImages, false);
         var imageDefaultFileName = _config.Get(c => c.ImageSettings.DefaultFileName);
         if (_config.Get(c => c.PdfSettings.SkipSavePrompt) && Path.IsPathRooted(pdfDefaultFileName))
         {

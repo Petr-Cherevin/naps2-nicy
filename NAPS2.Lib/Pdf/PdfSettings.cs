@@ -17,6 +17,11 @@ public record PdfSettings
 
     public string? DefaultFileName { get; set; }
 
+    public bool ExternalNameEnabled { get; set; }
+    public string? ExternalProgram { get; set; }
+    public string? ExternalArguments { get; set; }
+    public string? ExternalInput { get; set; }
+
     public bool SkipSavePrompt { get; set; }
 
     public bool SinglePagePdfs { get; set; }

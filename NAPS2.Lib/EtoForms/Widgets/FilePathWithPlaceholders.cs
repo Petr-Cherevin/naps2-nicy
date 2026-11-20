@@ -130,6 +130,7 @@ public class FilePathWithPlaceholders
     private void OpenPlaceholdersForm()
     {
         var form = _form.FormFactory.Create<PlaceholdersForm>();
+        form.AllowExternal = PdfOnly;
         form.FileName = _path.Text;
         form.ShowModal();
         if (form.Updated)

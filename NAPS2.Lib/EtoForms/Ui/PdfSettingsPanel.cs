@@ -12,6 +12,9 @@ internal class PdfSettingsPanel : SettingsPanelWithRememberCheckbox<PdfSettings>
     private readonly CheckBox _skipSavePrompt = new() { Text = UiStrings.SkipSavePrompt };
     private readonly CheckBox _singlePagePdfs = new() { Text = UiStrings.SinglePageFiles };
     private readonly CheckBox _allowJbig2 = new() { Text = UiStrings.AllowJbig2Compression };
+    private readonly CheckBox _external = new() { Text = ExternalNameForm.LabelFor("Имя файла из внешней программы", "Name from external program") };
+    private string? _program, _arguments, _input;
+    private bool _loading;
     private readonly TextBox _title = new();
     private readonly TextBox _author = new();
     private readonly TextBox _subject = new();
@@ -49,9 +52,23 @@ internal class PdfSettingsPanel : SettingsPanelWithRememberCheckbox<PdfSettings>
         };
 
         LoadValues(Config);
+        _external.CheckedChanged += (_, _) =>
+        {
+            if (!_loading && _external.IsChecked() && string.IsNullOrWhiteSpace(_program) && !ConfigureExternal())
+                _external.Checked = false;
+        };
 
         _defaultFilePath.TextChanged += DefaultFilePath_TextChanged;
         _encryptPdf.CheckedChanged += EncryptPdf_CheckedChanged;
+    }
+
+    private bool ConfigureExternal()
+    {
+        var dialog = new ExternalNameForm(Config, _program, _arguments, _input);
+        dialog.ShowModal();
+        if (!dialog.Accepted) return false;
+        (_program, _arguments, _input) = (dialog.ProgramPath, dialog.Arguments, dialog.Input);
+        return true;
     }
 
     public override string Title => UiStrings.PdfSettings;
@@ -67,6 +84,7 @@ internal class PdfSettingsPanel : SettingsPanelWithRememberCheckbox<PdfSettings>
         return L.Column(
             C.Label(UiStrings.DefaultFilePathLabel),
             _defaultFilePath,
+            L.Row(_external, C.Button(ExternalNameForm.LabelFor("Настроить…", "Configure…"), () => { ConfigureExternal(); })),
             _skipSavePrompt,
             _singlePagePdfs,
             L.GroupBox(
@@ -108,6 +126,10 @@ internal class PdfSettingsPanel : SettingsPanelWithRememberCheckbox<PdfSettings>
         get =>
             new()
             {
+                ExternalNameEnabled = _external.IsChecked(),
+                ExternalProgram = _program,
+                ExternalArguments = _arguments,
+                ExternalInput = _input,
                 DefaultFileName = _defaultFilePath.Text,
                 SkipSavePrompt = _skipSavePrompt.IsChecked(),
                 SinglePagePdfs = _singlePagePdfs.IsChecked(),
@@ -142,6 +164,10 @@ internal class PdfSettingsPanel : SettingsPanelWithRememberCheckbox<PdfSettings>
             };
         set
         {
+            _loading = true;
+            (_program, _arguments, _input) = (value.ExternalProgram, value.ExternalArguments, value.ExternalInput);
+            _external.Checked = value.ExternalNameEnabled;
+            _loading = false;
             _defaultFilePath.Text = value.DefaultFileName;
             _skipSavePrompt.Checked = value.SkipSavePrompt;
             _singlePagePdfs.Checked = value.SinglePagePdfs;

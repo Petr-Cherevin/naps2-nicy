@@ -60,6 +60,9 @@ public class PlaceholdersForm : EtoDialogBase
                         C.Button(x.val, () => Add(x.val)),
                         C.Label(x.text)
                     )).Expand(),
+                    AllowExternal
+                        ? L.Row(C.Button("$(external)", () => Add("$(external)")), C.Label(ExternalNameForm.LabelFor("Результат внешней программы", "External program result")))
+                        : C.None(),
                     L.Row(
                         C.Button(NameManager.FULL_DATE, () => Add(NameManager.FULL_DATE)).MinWidth(150),
                         C.Button(NameManager.FULL_TIME, () => Add(NameManager.FULL_TIME)).MinWidth(150)
@@ -68,6 +71,8 @@ public class PlaceholdersForm : EtoDialogBase
             )
         );
     }
+
+    public bool AllowExternal { get; set; }
 
     public string? FileName { get; set; }
 
@@ -90,7 +95,7 @@ public class PlaceholdersForm : EtoDialogBase
 
     private void FileName_TextChanged(object? sender, EventArgs e)
     {
-        _preview.Text = _nameManager.Get(_fileName.Text, new NameContext { DateTime = DateTime.Now, IsFilePath = false });
+        _preview.Text = _nameManager.Get(AllowExternal ? _fileName.Text.Replace("$(external)", "2026-2-291") : _fileName.Text, new NameContext { DateTime = DateTime.Now, IsFilePath = false });
     }
 
 }
