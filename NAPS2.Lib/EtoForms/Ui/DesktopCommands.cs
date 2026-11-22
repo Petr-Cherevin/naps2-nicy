@@ -115,8 +115,10 @@ public class DesktopCommands
         {
             Text = UiStrings.ClearTextAll
         };
-        SaveSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(false));
-        ExtractSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(true));
+        SaveSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(false))
+            { IconName = "file_extension_pdf", Text = SaveSeparateLabel };
+        ExtractSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(true))
+            { IconName = "arrow_out", Text = ExtractSeparateLabel };
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
             Text = UiStrings.ExtractSelected,
@@ -492,6 +494,8 @@ public class DesktopCommands
     public ActionCommand RecognizeAgainSelected { get; set; }
     public ActionCommand ClearTextSelected { get; set; }
     public ActionCommand ClearTextAll { get; set; }
+    internal static string SaveSeparateLabel => ExternalNameForm.LabelFor("Сохранить по одному", "Save individually");
+    internal static string ExtractSeparateLabel => ExternalNameForm.LabelFor("Извлечь по одному", "Extract individually");
     public ActionCommand SaveSeparatePdfs { get; }
     public ActionCommand ExtractSeparatePdfs { get; }
     public ActionCommand ExtractSelected { get; set; }

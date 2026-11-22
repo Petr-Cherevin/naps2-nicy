@@ -400,6 +400,8 @@ public abstract class DesktopForm : EtoFormBase
                 .Append(Commands.SaveSeparatePdfs)
                 .Separator()
                 .Append(Commands.PdfSettings));
+        if (ShowButton(ToolbarButtons.SaveSeparatePdfs))
+            CreateToolbarButton(Commands.SaveSeparatePdfs);
         if (ShowButton(ToolbarButtons.SaveImages))
             CreateToolbarButtonWithMenu(Commands.SaveImages, DesktopToolbarMenuType.SaveImages, new MenuProvider()
                 .Append(Commands.SaveAllImages)
@@ -409,6 +411,8 @@ public abstract class DesktopForm : EtoFormBase
         if (ShowButton(ToolbarButtons.Extract))
             CreateToolbarButtonWithMenu(Commands.ExtractSelected, DesktopToolbarMenuType.Extract, new MenuProvider()
                 .Append(Commands.ExtractSeparatePdfs));
+        if (ShowButton(ToolbarButtons.ExtractSeparatePdfs))
+            CreateToolbarButton(Commands.ExtractSeparatePdfs);
         if (PlatformCompat.System.CanEmail && ShowButton(ToolbarButtons.EmailPdf))
             CreateToolbarButtonWithMenu(Commands.EmailPdf, DesktopToolbarMenuType.EmailPdf, new MenuProvider()
                 .Append(Commands.EmailAll)
@@ -668,10 +672,10 @@ public abstract class DesktopForm : EtoFormBase
             Commands.EmailSelected.Enabled = Commands.ReverseSelected.Enabled = ImageList.Selection.Any();
 
         var count = ImageList.Selection.Count;
-        Commands.SaveSeparatePdfs.Text = string.Format(ExternalNameForm.LabelFor(
-            "Выбранные по одному ({0})", "Selected individually ({0})"), count);
-        Commands.ExtractSeparatePdfs.Text = string.Format(ExternalNameForm.LabelFor(
-            "Извлечь по одному ({0})", "Extract individually ({0})"), count);
+        Commands.SaveSeparatePdfs.SetCaptions(DesktopCommands.SaveSeparateLabel, string.Format(ExternalNameForm.LabelFor(
+            "Выбранные по одному ({0})", "Selected individually ({0})"), count));
+        Commands.ExtractSeparatePdfs.SetCaptions(DesktopCommands.ExtractSeparateLabel, string.Format(ExternalNameForm.LabelFor(
+            "Извлечь по одному ({0})", "Extract individually ({0})"), count));
         Commands.SaveSeparatePdfs.Enabled = Commands.ExtractSeparatePdfs.Enabled = Commands.ExtractSelected.Enabled;
 
         // Other

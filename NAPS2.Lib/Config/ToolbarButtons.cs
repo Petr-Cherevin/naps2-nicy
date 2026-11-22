@@ -28,5 +28,7 @@ public enum ToolbarButtons
     Interleave =  1 << 21,
     RotateButtons = 1 << 22,
     Recognize = 1 << 23,
-    Extract = 1 << 24
+    Extract = 1 << 24,
+    SaveSeparatePdfs = 1 << 25,
+    ExtractSeparatePdfs = 1 << 26
 }

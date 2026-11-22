@@ -72,9 +72,14 @@ internal class ToolbarSettingsPanel : SettingsPanel
             yield return (ToolbarButtons.Recognize, UiStrings.Recognize);
         yield return (ToolbarButtons.Import, UiStrings.Import);
         yield return (ToolbarButtons.SavePdf, UiStrings.SavePdf);
+        if (!EtoPlatform.Current.IsMac)
+            yield return (ToolbarButtons.SaveSeparatePdfs, DesktopCommands.SaveSeparateLabel);
         yield return (ToolbarButtons.SaveImages, UiStrings.SaveImages);
         if (!EtoPlatform.Current.IsMac)
+        {
             yield return (ToolbarButtons.Extract, UiStrings.ExtractSelected);
+            yield return (ToolbarButtons.ExtractSeparatePdfs, DesktopCommands.ExtractSeparateLabel);
+        }
         if (PlatformCompat.System.CanEmail)
             yield return (ToolbarButtons.EmailPdf, UiStrings.EmailPdf);
         if (PlatformCompat.System.CanPrint)

@@ -20,12 +20,14 @@ public class ActionCommand : Command
     public string Text
     {
         get => string.IsNullOrEmpty(ToolBarText) ? MenuText : ToolBarText;
-        set
-        {
-            ToolBarText = value;
-            MenuText = value;
-            TextChanged?.Invoke(this, EventArgs.Empty);
-        }
+        set => SetCaptions(value, value);
+    }
+
+    internal void SetCaptions(string toolbar, string menu)
+    {
+        ToolBarText = toolbar;
+        MenuText = menu;
+        TextChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public event EventHandler? TextChanged;

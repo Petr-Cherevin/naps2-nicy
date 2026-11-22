@@ -123,11 +123,15 @@ jobs:
           cp "$installer" release-assets/
           cp tools/Naps2VanillaSettings.ps1 tools/Naps2VanillaSettings.cmd release-assets/
           ls -lh release-assets/
-      - name: Create GitHub release
+      - name: Update existing GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          gh release create nicy-0019 release-assets/NAPS2-ChatGPT-0019-win-x64.zip release-assets/NAPS2-Nicy-0019-Setup-win-x64.exe release-assets/Naps2VanillaSettings.cmd release-assets/Naps2VanillaSettings.ps1 --target "$RELEASE_SHA" --title "NAPS2 Nicy-0019" --notes "В меню Сохранить PDF и Извлечь добавлены команды сохранения выделенных страниц по одной. Папка выбирается один раз, имя вычисляется для каждой страницы. Совпадающие имена нумеруются."
+          gh release upload nicy-0019 release-assets/*.zip release-assets/*.exe --clobber
+          git push origin "$RELEASE_SHA:refs/tags/nicy-0019" --force-with-lease=refs/tags/nicy-0019:$(git ls-remote origin refs/tags/nicy-0019 | cut -f1)
+          gh release edit nicy-0019 --notes "В меню Сохранить PDF и Извлечь доступны команды сохранения выделенных страниц по одной. Папка выбирается один раз, имя вычисляется для каждой страницы. Совпадающие имена нумеруются.
+
+          Обновление 22.11.2026. В настройках панелей можно отдельно включить кнопки «Сохранить по одному» и «Извлечь по одному». По умолчанию обе скрыты."

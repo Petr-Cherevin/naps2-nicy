@@ -5,6 +5,21 @@ namespace NAPS2.Lib.Tests.Config;
 
 public class ToolbarButtonsTests : ContextualTests
 {
+    [Theory]
+    [InlineData(ToolbarButtons.None, false, false)]
+    [InlineData(ToolbarButtons.SaveSeparatePdfs, true, false)]
+    [InlineData(ToolbarButtons.ExtractSeparatePdfs, false, true)]
+    [InlineData(ToolbarButtons.SaveSeparatePdfs | ToolbarButtons.ExtractSeparatePdfs, true, true)]
+    public void SeparatePdfButtonsAreIndependent(ToolbarButtons extra, bool save, bool extract)
+    {
+        var config = Naps2Config.Stub();
+        Assert.False(config.IsToolbarButtonShown(ToolbarButtons.SaveSeparatePdfs));
+        Assert.False(config.IsToolbarButtonShown(ToolbarButtons.ExtractSeparatePdfs));
+        config.User.Set(c => c.ExtraButtons, extra);
+        Assert.Equal(save, config.IsToolbarButtonShown(ToolbarButtons.SaveSeparatePdfs));
+        Assert.Equal(extract, config.IsToolbarButtonShown(ToolbarButtons.ExtractSeparatePdfs));
+    }
+
     [Fact]
     public void DefaultButtonsShownUnlessHidden()
     {
