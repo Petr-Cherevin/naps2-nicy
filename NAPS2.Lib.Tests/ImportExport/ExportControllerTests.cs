@@ -18,6 +18,7 @@ public class ExportControllerTests : ContextualTests
     private readonly IOverwritePrompt _overwritePrompt;
     private readonly ISaveNotify _notify;
     private readonly Naps2Config _config;
+    private readonly UiImageList _imageList = new();
     private readonly ExportController _controller;
     private IEmailProviderFactory? _emailProviderFactory;
 
@@ -37,7 +38,7 @@ public class ExportControllerTests : ContextualTests
             new SaveImagesOperation(_overwritePrompt, ImageContext, nameManager));
 
         _controller = new ExportController(_dialogHelper, operationFactory, Substitute.For<IFormFactory>(),
-            Substitute.For<OperationProgress>(), _config, new UiImageList(), nameManager);
+            Substitute.For<OperationProgress>(), _config, _imageList, nameManager);
     }
 
     private static string Year => DateTime.Now.ToString("yyyy");
@@ -57,6 +58,51 @@ public class ExportControllerTests : ContextualTests
             x[1] = path;
             return true;
         });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SeparatePdfs_ChoosesFolderOnceAndKeepsExistingFiles(bool automatic)
+    {
+        var folder = P("batch");
+        Directory.CreateDirectory(folder);
+        File.WriteAllText(Path.Combine(folder, "scan.pdf"), "existing");
+        _config.Run.Set(c => c.PdfSettings.DefaultFileName, Path.Combine(folder, "scan.pdf"));
+        _config.Run.Set(c => c.PdfSettings.SkipSavePrompt, automatic);
+        _dialogHelper.ChoosePdfFolder(folder, out Arg.Any<string?>()).Returns(call =>
+        {
+            call[1] = folder;
+            return true;
+        });
+        var images = CreateUiImages(ImageResources.dog, ImageResources.dog_gray);
+        foreach (var image in images) _imageList.Mutate(new ListMutation<UiImage>.Append(image));
+        Assert.True(await _controller.SaveSeparatePdfs(images, _notify, false));
+        _dialogHelper.Received(automatic ? 0 : 1).ChoosePdfFolder(folder, out Arg.Any<string?>());
+        _dialogHelper.DidNotReceiveWithAnyArgs().PromptToSavePdf(default, out _);
+        Assert.Equal("existing", File.ReadAllText(Path.Combine(folder, "scan.pdf")));
+        PdfAsserts.AssertImages(Path.Combine(folder, "scan.1.pdf"), ImageResources.dog);
+        PdfAsserts.AssertImages(Path.Combine(folder, "scan.2.pdf"), ImageResources.dog_gray);
+        Assert.Equal(2, _imageList.Images.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExtractSeparatePdfs_RemovesPagesOnlyAfterSaving(bool accept)
+    {
+        var images = CreateUiImages(ImageResources.dog, ImageResources.dog_gray);
+        foreach (var image in images) _imageList.Mutate(new ListMutation<UiImage>.Append(image));
+        var folder = P("separate");
+        _dialogHelper.ChoosePdfFolder(Arg.Any<string?>(), out Arg.Any<string?>()).Returns(call =>
+        {
+            call[1] = accept ? folder : null;
+            return accept;
+        });
+        Assert.Equal(accept, await _controller.SaveSeparatePdfs(images, _notify, true));
+        Assert.Equal(accept ? 0 : 2, _imageList.Images.Count);
+        if (accept) Assert.Equal(2, Directory.GetFiles(folder, "*.pdf").Length);
+        else Assert.False(Directory.Exists(folder));
     }
 
     [Fact]

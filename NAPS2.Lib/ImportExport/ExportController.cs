@@ -112,6 +112,71 @@ public class ExportController : IExportController
         return Path.Combine(directory, leaf);
     }
 
+    public async Task<bool> SaveSeparatePdfs(ICollection<UiImage> uiImages, ISaveNotify notify, bool extract)
+    {
+        var selection = uiImages.ToList();
+        if (selection.Count == 0) return false;
+        var settings = _config.Get(c => c.PdfSettings);
+        var context = new NameContext { DateTime = DateTime.Now, Numbering = Numbering.OnConflict };
+        var state = _imageList.CurrentState;
+        using var snapshots = GetSnapshots(selection);
+        var written = 0;
+        string? firstFile = null;
+        DirectoryInfo? staging = null;
+        try
+        {
+            var configured = _nameManager.Get(Path.GetDirectoryName(settings.DefaultFileName ?? ""),
+                context with { Numbering = Numbering.None });
+            var folder = configured;
+            if (!(settings.SkipSavePrompt && Path.IsPathFullyQualified(configured ?? "")) &&
+                !_dialogHelper.ChoosePdfFolder(configured, out folder)) return false;
+
+            Directory.CreateDirectory(folder!);
+            staging = Directory.CreateDirectory(Path.Combine(folder!, ".naps2-" + Guid.NewGuid().ToString("N")));
+            string temp = Path.Combine(staging.FullName, "document.pdf");
+            for (int i = 0; i < selection.Count; i++)
+            {
+                ProcessedImage[] page = [snapshots[i]];
+                if (!(await RunSavePdfOperation(temp, page)).Success) return false;
+                var suggested = await PdfName(page, [selection[i]], extract, UseDocumentInput() ? temp : null);
+                var leaf = Path.GetFileName(suggested);
+                if (string.IsNullOrWhiteSpace(leaf)) leaf = UiStrings.ScanFileName;
+                if (!leaf.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) leaf += ".pdf";
+                using var name = _nameManager.Reserve(Path.Combine(folder!, leaf), context);
+                File.Move(temp, name.Name);
+                firstFile ??= name.Name;
+                written++;
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorException(MiscResources.ErrorSaving, ex);
+            Eto.Forms.MessageBox.Show(ex.Message);
+            return false;
+        }
+        finally
+        {
+            if (staging != null)
+            {
+                try { staging.Delete(true); }
+                catch (Exception ex) { Log.ErrorException("Temporary PDF cleanup failed", ex); }
+            }
+            if (written > 0)
+            {
+                _imageList.MarkSaved(state, snapshots.Take(written));
+                if (extract)
+                {
+                    var remaining = selection.Take(written).Where((image, i) => _imageList.Images.Contains(image) &&
+                        Equals(image.GetImageWeakReference().ProcessedImage, snapshots[i])).ToList();
+                    if (remaining.Count > 0)
+                        _imageList.Mutate(new ImageListMutation.DeleteSelected(), ListSelection.From(remaining));
+                }
+                notify.PdfSaved(firstFile!);
+            }
+        }
+    }
+
     private enum DocumentAction { Save, Extract, Mixed }
 
     private bool UseDocumentInput()

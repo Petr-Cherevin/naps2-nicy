@@ -109,6 +109,9 @@ public class ImageListActions
     public async Task Redo() => await _imageList.Redo();
 
     public Task SaveAllAsPdf() => _exportController.SavePdf(_imageList.Images, _notify);
+    public Task SaveSeparatePdfs(bool extract) =>
+        _exportController.SaveSeparatePdfs(SelectedImages.Where(_imageList.Images.Contains).ToList(), _notify, extract);
+
     public Task SaveSelectedAsPdf() => _exportController.SavePdf(_imageList.Selection, _notify);
     /// <summary>
     /// Saves the selected images to a PDF file, then (only if that succeeds) removes them from the image list.

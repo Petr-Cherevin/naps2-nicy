@@ -397,6 +397,7 @@ public abstract class DesktopForm : EtoFormBase
             CreateToolbarButtonWithMenu(Commands.SavePdf, DesktopToolbarMenuType.SavePdf, new MenuProvider()
                 .Append(Commands.SaveAllPdf)
                 .Append(Commands.SaveSelectedPdf)
+                .Append(Commands.SaveSeparatePdfs)
                 .Separator()
                 .Append(Commands.PdfSettings));
         if (ShowButton(ToolbarButtons.SaveImages))
@@ -406,7 +407,8 @@ public abstract class DesktopForm : EtoFormBase
                 .Separator()
                 .Append(Commands.ImageSettings));
         if (ShowButton(ToolbarButtons.Extract))
-            CreateToolbarButton(Commands.ExtractSelected);
+            CreateToolbarButtonWithMenu(Commands.ExtractSelected, DesktopToolbarMenuType.Extract, new MenuProvider()
+                .Append(Commands.ExtractSeparatePdfs));
         if (PlatformCompat.System.CanEmail && ShowButton(ToolbarButtons.EmailPdf))
             CreateToolbarButtonWithMenu(Commands.EmailPdf, DesktopToolbarMenuType.EmailPdf, new MenuProvider()
                 .Append(Commands.EmailAll)
@@ -664,6 +666,13 @@ public abstract class DesktopForm : EtoFormBase
             Commands.ReverseSelected.Text = string.Format(MiscResources.SelectedCount, ImageList.Selection.Count);
         Commands.SaveSelectedPdf.Enabled = Commands.SaveSelectedImages.Enabled = Commands.SaveSelected.Enabled =
             Commands.EmailSelected.Enabled = Commands.ReverseSelected.Enabled = ImageList.Selection.Any();
+
+        var count = ImageList.Selection.Count;
+        Commands.SaveSeparatePdfs.Text = string.Format(ExternalNameForm.LabelFor(
+            "Выбранные по одному ({0})", "Selected individually ({0})"), count);
+        Commands.ExtractSeparatePdfs.Text = string.Format(ExternalNameForm.LabelFor(
+            "Извлечь по одному ({0})", "Extract individually ({0})"), count);
+        Commands.SaveSeparatePdfs.Enabled = Commands.ExtractSeparatePdfs.Enabled = Commands.ExtractSelected.Enabled;
 
         // Other
         Commands.SelectAll.Enabled = ImageList.Images.Any();

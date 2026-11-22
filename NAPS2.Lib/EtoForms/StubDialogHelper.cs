@@ -20,6 +20,12 @@ public class StubDialogHelper : DialogHelper
         return false;
     }
 
+    public override bool ChoosePdfFolder(string? initialFolder, out string? folder)
+    {
+        folder = null;
+        return false;
+    }
+
     public override bool PromptToImport(out string[]? filePaths)
     {
         filePaths = null;

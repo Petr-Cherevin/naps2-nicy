@@ -8,5 +8,7 @@ public abstract class DialogHelper
 
     public abstract bool PromptToSaveImage(string? defaultPath, out string? savePath);
 
+    public abstract bool ChoosePdfFolder(string? initialFolder, out string? folder);
+
     public abstract bool PromptToImport(out string[]? filePaths);
 }

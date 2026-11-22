@@ -115,6 +115,8 @@ public class DesktopCommands
         {
             Text = UiStrings.ClearTextAll
         };
+        SaveSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(false));
+        ExtractSeparatePdfs = new ActionCommand(() => imageListActions.SaveSeparatePdfs(true));
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
             Text = UiStrings.ExtractSelected,
@@ -490,6 +492,8 @@ public class DesktopCommands
     public ActionCommand RecognizeAgainSelected { get; set; }
     public ActionCommand ClearTextSelected { get; set; }
     public ActionCommand ClearTextAll { get; set; }
+    public ActionCommand SaveSeparatePdfs { get; }
+    public ActionCommand ExtractSeparatePdfs { get; }
     public ActionCommand ExtractSelected { get; set; }
     public ActionCommand Import { get; set; }
     public ActionCommand SaveAll { get; set; }

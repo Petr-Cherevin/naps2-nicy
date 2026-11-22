@@ -6,5 +6,6 @@ public enum DesktopToolbarMenuType
     SavePdf,
     SaveImages,
     EmailPdf,
-    Recognize
+    Recognize,
+    Extract
 }
