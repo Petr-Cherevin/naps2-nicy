@@ -15,13 +15,13 @@ public class ExternalEditorSessionTests : ContextualTests
         _imageList.Mutate(new ListMutation<UiImage>.Append(new UiImage(CreateScannedImage())));
     }
 
-    public override void Dispose()
+    public override ValueTask DisposeAsync()
     {
         foreach (var image in _imageList.Images)
         {
             image.Dispose();
         }
-        base.Dispose();
+        return base.DisposeAsync();
     }
 
     [Fact]
