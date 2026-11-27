@@ -37,6 +37,14 @@ public class WinFormsEtoPlatform : EtoPlatform
         return new Application(Eto.Platforms.WinForms);
     }
 
+    public override bool ChoosePdfFolder(string? initialFolder, out string? folder)
+    {
+        using var picker = new WF.FolderBrowserDialog();
+        if (Directory.Exists(initialFolder)) picker.SelectedPath = initialFolder;
+        folder = picker.ShowDialog(WF.Form.ActiveForm) == WF.DialogResult.OK ? picker.SelectedPath : null;
+        return folder != null;
+    }
+
     public override void SetSystemTheme()
     {
         WF.Application.SetColorMode(ColorScheme.DarkMode ? WF.SystemColorMode.Dark : WF.SystemColorMode.Classic);

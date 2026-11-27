@@ -230,6 +230,14 @@ public abstract class EtoPlatform
 
     public virtual void SetSplitterPosition(Splitter splitter, int pos) => splitter.Position = pos;
 
+    public virtual bool ChoosePdfFolder(string? initialFolder, out string? folder)
+    {
+        using var picker = new SelectFolderDialog();
+        if (Directory.Exists(initialFolder)) picker.Directory = initialFolder;
+        folder = picker.ShowDialog(null) == DialogResult.Ok ? picker.Directory : null;
+        return folder != null;
+    }
+
     public virtual void ConfigureFileDialog(FileDialog fileDialog)
     {
     }

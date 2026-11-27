@@ -37,6 +37,9 @@ jobs:
           dotnet-version: |
             10.0.x
             11.0.x
+      - name: Exercise native folder picker on Windows
+        timeout-minutes: 5
+        run: dotnet run --project tools/FolderPickerCheck
       - name: Build Portable ZIP
         run: dotnet run --project NAPS2.Tools -- pkg zip -p win64 --nosign -v
       - name: Name release archive
@@ -134,4 +137,6 @@ jobs:
           git push origin "$RELEASE_SHA:refs/tags/nicy-0019" --force-with-lease=refs/tags/nicy-0019:$(git ls-remote origin refs/tags/nicy-0019 | cut -f1)
           gh release edit nicy-0019 --notes "В меню Сохранить PDF и Извлечь доступны команды сохранения выделенных страниц по одной. Папка выбирается один раз, имя вычисляется для каждой страницы. Совпадающие имена нумеруются.
 
-          Обновление 22.11.2026. В настройках панелей можно отдельно включить кнопки «Сохранить по одному» и «Извлечь по одному». По умолчанию обе скрыты."
+          Обновление 22.11.2026. В настройках панелей можно отдельно включить кнопки «Сохранить по одному» и «Извлечь по одному». По умолчанию обе скрыты.
+
+          Обновление 27.11.2026. Исправлен выбор папки для сохранения и извлечения по одному в Windows."
