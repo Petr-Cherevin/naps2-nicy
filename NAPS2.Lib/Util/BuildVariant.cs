@@ -7,7 +7,7 @@ public static class BuildVariant
 {
     public const string Name = "Nicy";
 
-    public const string ReleaseNumber = "0019";
+    public const string ReleaseNumber = "0020";
 
     private const string BaseName = "NAPS2";
 

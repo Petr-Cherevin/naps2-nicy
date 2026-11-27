@@ -61,6 +61,10 @@ public class ScanProfile
 
     public string DisplayName { get; set; } = "";
 
+    public string? ToolbarIcon { get; set; }
+
+    public int? ToolbarColor { get; set; }
+
     public int IconID { get; set; }
 
     public bool MaxQuality { get; set; }

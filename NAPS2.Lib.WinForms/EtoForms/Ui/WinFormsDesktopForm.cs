@@ -159,7 +159,11 @@ public class WinFormsDesktopForm : DesktopForm
         _profilesToolStrip.TabStop = true;
         _profilesToolStrip.Location = new Point(0, 1000);
         EtoPlatform.Current.AttachDpiDependency(this,
-            scale => _profilesToolStrip.ImageScalingSize = new Size((int) (16 * scale), (int) (16 * scale)));
+            scale =>
+            {
+                _profilesToolStrip.ImageScalingSize = new Size((int) (16 * scale), (int) (16 * scale));
+                UpdateProfilesToolbar();
+            });
 
         var contextMenu = (WF.ContextMenuStrip) C.ContextMenu(this, GetToolbarContextMenuProvider()).ControlObject;
         _mainToolStrip.ContextMenuStrip = contextMenu;
@@ -227,7 +231,10 @@ public class WinFormsDesktopForm : DesktopForm
         var missing = profiles.Count - toolbarItems.Count;
         for (int i = 0; i < extra; i++)
         {
-            toolbarItems.RemoveAt(toolbarItems.Count - 1);
+            var removed = toolbarItems[toolbarItems.Count - 1];
+            toolbarItems.Remove(removed);
+            removed.Image?.Dispose();
+            removed.Dispose();
         }
         for (int i = 0; i < missing; i++)
         {
@@ -237,8 +244,6 @@ public class WinFormsDesktopForm : DesktopForm
                 ImageAlign = ContentAlignment.MiddleLeft,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            EtoPlatform.Current.AttachDpiDependency(this,
-                scale => item.Image = _iconProvider.GetIcon("control_play_blue", IconScenario.SmallToolbar, scale).ToSD());
             item.Click += (_, _) => _desktopScanController.ScanWithProfile((ScanProfile) item.Tag!);
             toolbarItems.Add(item);
         }
@@ -247,6 +252,13 @@ public class WinFormsDesktopForm : DesktopForm
             var profile = profiles[i];
             var item = toolbarItems[i];
             item.Tag = profile;
+            item.BackColor = profile.ToolbarColor is int rgb ? Color.FromArgb(255, Color.FromArgb(rgb)) : Color.Empty;
+            item.ForeColor = profile.ToolbarColor.HasValue ? Color.Black : Color.Empty;
+            var previous = item.Image;
+            var icon = _iconProvider.GetIcon(profile.ToolbarIcon ?? "control_play_blue", IconScenario.SmallToolbar,
+                EtoPlatform.Current.GetScaleFactor(this));
+            item.Image = (icon ?? _iconProvider.GetIcon("control_play_blue", IconScenario.SmallToolbar)!).ToSD();
+            previous?.Dispose();
             var text = profile.DisplayName.Replace("&", "&&");
             if (item.Text != text)
             {
@@ -375,6 +387,7 @@ public class WinFormsDesktopForm : DesktopForm
     {
         var item = new ToolStripDoubleButton
         {
+            Enabled = command1.Enabled,
             FirstText = command1.ToolBarText,
             SecondText = command2.ToolBarText
         };

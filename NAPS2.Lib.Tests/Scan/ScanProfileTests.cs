@@ -9,6 +9,17 @@ public class ScanProfileTests
     private static ScanPageSize ExpectedSystemDefault =>
         PageSize.SystemDefault == PageSize.A4 ? ScanPageSize.A4 : ScanPageSize.Letter;
 
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("profile_duplex", 0xDCEEFF)]
+    [InlineData("profile_simplex", null)]
+    public void ClonePreservesToolbarAppearance(string? icon, int? color)
+    {
+        var copy = new ScanProfile { ToolbarIcon = icon, ToolbarColor = color }.Clone();
+        Assert.Equal(icon, copy.ToolbarIcon);
+        Assert.Equal(color, copy.ToolbarColor);
+    }
+
     [Fact]
     public void SetSystemDefaultPageSize()
     {

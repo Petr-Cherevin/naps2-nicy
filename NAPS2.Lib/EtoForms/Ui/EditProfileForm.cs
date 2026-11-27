@@ -14,6 +14,8 @@ public class EditProfileForm : EtoDialogBase
     private readonly ProfileNameTracker _profileNameTracker;
     private readonly DeviceCapsCache _deviceCapsCache;
 
+    private readonly DropDown _toolbarIcon = new(), _toolbarColor = new();
+    private readonly Button _sample = new();
     private readonly TextBox _displayName = new();
     private readonly DeviceSelectorWidget _deviceSelectorWidget;
     private readonly RadioButton _predefinedSettings;
@@ -43,6 +45,35 @@ public class EditProfileForm : EtoDialogBase
     {
         Title = UiStrings.EditProfileFormTitle;
         IconName = "blueprints";
+
+        var label = ExternalNameForm.LabelFor;
+        foreach (var (key, title) in new[]
+        {
+            ("control_play_blue", label("Стандартный", "Default")), ("scanner", label("Стекло", "Flatbed")),
+            ("profile_simplex", label("Одностороннее", "Single-sided")),
+            ("profile_duplex", label("Двустороннее", "Double-sided"))
+        })
+            _toolbarIcon.Items.Add(new ListItem { Key = key, Text = title });
+        foreach (var (key, title) in new[]
+        {
+            ("", label("Системный", "System")), ("DCEEFF", label("Голубой", "Light blue")),
+            ("FFF0C2", label("Песочный", "Sand")), ("DDF2CF", label("Зелёный", "Green")),
+            ("FFDBDF", label("Розовый", "Pink")), ("EADCFA", label("Сиреневый", "Lilac"))
+        })
+            _toolbarColor.Items.Add(new ListItem { Key = key, Text = title });
+        _toolbarIcon.SelectedIndex = _toolbarColor.SelectedIndex = 0;
+        var defaultBackground = _sample.BackgroundColor;
+        var defaultForeground = _sample.TextColor;
+        void UpdateSample()
+        {
+            _sample.Text = _displayName.Text;
+            _sample.Image = iconProvider.GetIcon(_toolbarIcon.SelectedKey ?? "control_play_blue", IconScenario.SmallToolbar);
+            _sample.BackgroundColor = SelectedColor is int rgb ? Color.FromRgb(rgb) : defaultBackground;
+            _sample.TextColor = SelectedColor.HasValue ? Colors.Black : defaultForeground;
+        }
+        _toolbarIcon.SelectedIndexChanged += (_, _) => UpdateSample();
+        _toolbarColor.SelectedIndexChanged += (_, _) => UpdateSample();
+        _displayName.TextChanged += (_, _) => UpdateSample();
 
         _errorOutput = errorOutput;
         _profileNameTracker = profileNameTracker;
@@ -94,6 +125,10 @@ public class EditProfileForm : EtoDialogBase
         LayoutController.Content = L.Column(
             C.Label(UiStrings.DisplayNameLabel),
             _displayName,
+            EtoPlatform.Current.IsWinForms ? L.GroupBox(ExternalNameForm.LabelFor("Оформление кнопки", "Profile button"),
+                L.Row(L.Column(C.Label(ExternalNameForm.LabelFor("Значок", "Icon")), _toolbarIcon),
+                    L.Column(C.Label(ExternalNameForm.LabelFor("Цвет фона", "Background")), _toolbarColor),
+                    L.Column(C.Label(ExternalNameForm.LabelFor("Образец", "Preview")), _sample))) : C.None(),
             C.Spacer(),
             _deviceSelectorWidget,
             C.Spacer(),
@@ -285,6 +320,10 @@ public class EditProfileForm : EtoDialogBase
                 : Driver.Default);
         IconUri = ScanProfile.Device?.IconUri;
 
+        _toolbarIcon.SelectedKey = ScanProfile.ToolbarIcon ?? "control_play_blue";
+        _toolbarColor.SelectedKey = ScanProfile.ToolbarColor?.ToString("X6") ?? "";
+        if (_toolbarIcon.SelectedIndex < 0) _toolbarIcon.SelectedIndex = 0;
+        if (_toolbarColor.SelectedIndex < 0) _toolbarColor.SelectedIndex = 0;
         _displayName.Text = ScanProfile.DisplayName;
         if (_deviceSelectorWidget.Choice == DeviceChoice.None)
         {
@@ -357,6 +396,9 @@ public class EditProfileForm : EtoDialogBase
         return true;
     }
 
+    private int? SelectedColor => string.IsNullOrEmpty(_toolbarColor.SelectedKey)
+        ? null : Convert.ToInt32(_toolbarColor.SelectedKey, 16);
+
     private ScanProfile GetUpdatedScanProfile()
     {
         var pageSize = _pageSize.SelectedItem!;
@@ -369,6 +411,8 @@ public class EditProfileForm : EtoDialogBase
             IsDefault = _isDefault,
             DriverName = DeviceDriver.ToString().ToLowerInvariant(),
             DisplayName = _displayName.Text,
+            ToolbarIcon = _toolbarIcon.SelectedIndex > 0 ? _toolbarIcon.SelectedKey : null,
+            ToolbarColor = SelectedColor,
             IconID = 0,
             MaxQuality = ScanProfile.MaxQuality,
             UseNativeUI = _nativeUi.Checked,

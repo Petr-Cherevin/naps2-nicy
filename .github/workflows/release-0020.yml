@@ -1,8 +1,8 @@
-name: NAPS2 Nicy-0019 release
+name: NAPS2 Nicy-0020 release
 
 on:
   push:
-    branches: [chatgpt-0019]
+    branches: [chatgpt-0020]
   workflow_dispatch:
 
 permissions:
@@ -47,11 +47,11 @@ jobs:
         run: |
           $zip = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*.zip' -Recurse | Select-Object -First 1
           if ($null -eq $zip) { throw 'Portable archive not found' }
-          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-ChatGPT-0019-win-x64.zip'
+          Rename-Item -LiteralPath $zip.FullName -NewName 'NAPS2-Nicy-0020-win-x64.zip'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0019-release-portable
-          path: NAPS2.Setup/publish/**/NAPS2-ChatGPT-0019-win-x64.zip
+          name: nicy-0020-release-portable
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0020-win-x64.zip
           if-no-files-found: error
 
   installer:
@@ -74,17 +74,17 @@ jobs:
           }
           if (-not (Test-Path -LiteralPath $iscc)) { throw 'ISCC.exe not found' }
       - name: Build unsigned installer
-        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0019 --nosign -v
+        run: dotnet run --project NAPS2.Tools -- pkg exe -p win64 --name nicy-0020 --nosign -v
       - name: Name release installer
         shell: pwsh
         run: |
-          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0019.exe' -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem -Path 'NAPS2.Setup/publish' -Filter '*nicy-0020.exe' -Recurse | Select-Object -First 1
           if ($null -eq $exe) { throw 'Installer not found' }
-          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0019-Setup-win-x64.exe'
+          Rename-Item -LiteralPath $exe.FullName -NewName 'NAPS2-Nicy-0020-Setup-win-x64.exe'
       - uses: actions/upload-artifact@v6
         with:
-          name: nicy-0019-release-installer
-          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0019-Setup-win-x64.exe
+          name: nicy-0020-release-installer
+          path: NAPS2.Setup/publish/**/NAPS2-Nicy-0020-Setup-win-x64.exe
           if-no-files-found: error
 
   publish:
@@ -107,36 +107,30 @@ jobs:
           }
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0019-release-portable
+          name: nicy-0020-release-portable
           path: dist
       - uses: actions/download-artifact@v6
         with:
-          name: nicy-0019-release-installer
+          name: nicy-0020-release-installer
           path: dist
       - name: Prepare release assets
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
-          portable="$(find dist -type f -name 'NAPS2-ChatGPT-0019-win-x64.zip' -print -quit)"
-          installer="$(find dist -type f -name 'NAPS2-Nicy-0019-Setup-win-x64.exe' -print -quit)"
+          portable="$(find dist -type f -name 'NAPS2-Nicy-0020-win-x64.zip' -print -quit)"
+          installer="$(find dist -type f -name 'NAPS2-Nicy-0020-Setup-win-x64.exe' -print -quit)"
           test -n "$portable" && test -s "$portable"
           test -n "$installer" && test -s "$installer"
           cp "$portable" release-assets/
           cp "$installer" release-assets/
           cp tools/Naps2VanillaSettings.ps1 tools/Naps2VanillaSettings.cmd release-assets/
           ls -lh release-assets/
-      - name: Update existing GitHub release
+      - name: Publish Nicy 0020
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          gh release upload nicy-0019 release-assets/*.zip release-assets/*.exe --clobber
-          git push origin "$RELEASE_SHA:refs/tags/nicy-0019" --force-with-lease=refs/tags/nicy-0019:$(git ls-remote origin refs/tags/nicy-0019 | cut -f1)
-          gh release edit nicy-0019 --notes "В меню Сохранить PDF и Извлечь доступны команды сохранения выделенных страниц по одной. Папка выбирается один раз, имя вычисляется для каждой страницы. Совпадающие имена нумеруются.
-
-          Обновление 22.11.2026. В настройках панелей можно отдельно включить кнопки «Сохранить по одному» и «Извлечь по одному». По умолчанию обе скрыты.
-
-          Обновление 27.11.2026. Исправлен выбор папки для сохранения и извлечения по одному в Windows."
+          gh release create nicy-0020 release-assets/* --target "$RELEASE_SHA" --title "NAPS2 Nicy-0020" --notes "На базе NAPS2 8.6.1. Значки и цвет кнопок задаются в редакторе профиля. В настройках панелей можно включить компактную пару Извлечь / По одной. У отдельной кнопки Извлечь по одному подпись в две строки."

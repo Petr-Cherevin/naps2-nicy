@@ -6,7 +6,7 @@ public static class ToolbarButtonsExtensions
     /// Buttons that aren't shown by default, only if they're added to ExtraButtons.
     /// </summary>
     public const ToolbarButtons OptionalButtons = ToolbarButtons.RotateButtons |
-        ToolbarButtons.SaveSeparatePdfs | ToolbarButtons.ExtractSeparatePdfs;
+        ToolbarButtons.SaveSeparatePdfs | ToolbarButtons.ExtractSeparatePdfs | ToolbarButtons.ExtractPair;
 
     public static bool IsOptional(this ToolbarButtons button) => (OptionalButtons & button) == button;
 

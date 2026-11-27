@@ -745,4 +745,16 @@
   <data name="text_clear_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>Icons\text_clear_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="profile_simplex_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\profile_simplex_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="profile_duplex_16" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\profile_duplex_16.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="profile_simplex_32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\profile_simplex_32.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="profile_duplex_32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\profile_duplex_32.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
 </root>

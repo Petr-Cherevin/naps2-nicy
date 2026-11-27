@@ -79,6 +79,8 @@ internal class ToolbarSettingsPanel : SettingsPanel
         {
             yield return (ToolbarButtons.Extract, UiStrings.ExtractSelected);
             yield return (ToolbarButtons.ExtractSeparatePdfs, DesktopCommands.ExtractSeparateLabel);
+            yield return (ToolbarButtons.ExtractPair, ExternalNameForm.LabelFor(
+                "Компактная пара: Извлечь / По одной", "Compact pair: Extract / Individually"));
         }
         if (PlatformCompat.System.CanEmail)
             yield return (ToolbarButtons.EmailPdf, UiStrings.EmailPdf);

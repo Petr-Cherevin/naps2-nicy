@@ -30,5 +30,6 @@ public enum ToolbarButtons
     Recognize = 1 << 23,
     Extract = 1 << 24,
     SaveSeparatePdfs = 1 << 25,
-    ExtractSeparatePdfs = 1 << 26
+    ExtractSeparatePdfs = 1 << 26,
+    ExtractPair = 1 << 27
 }
