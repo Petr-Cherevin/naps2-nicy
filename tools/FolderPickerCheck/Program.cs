@@ -24,6 +24,7 @@ internal static class Program
     private static void Main()
     {
         EtoPlatform.Current = new WinFormsEtoPlatform();
+        EtoPlatform.Current.ColorScheme.Config = NAPS2.Config.Naps2Config.Stub();
         using var application = EtoPlatform.Current.CreateApplication();
         foreach (var key in new[] { "profile_simplex", "profile_duplex" })
         {
