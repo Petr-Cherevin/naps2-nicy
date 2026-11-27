@@ -123,7 +123,8 @@ public class DesktopCommands
             { IconName = "split", Text = ExternalNameForm.LabelFor("По одной", "Individually") };
         ExtractSelected = new ActionCommand(imageListActions.ExtractSelectedAsPdf)
         {
-            Text = UiStrings.ExtractSelected,
+            MenuText = UiStrings.ExtractSelected,
+            ToolBarText = ExternalNameForm.LabelFor("Извлечь", "Extract"),
             IconName = "arrow_out",
             // Needed when the toolbar is recreated without a selection change.
             Enabled = imageListActions.SelectedImages.Any(imageList.Images.Contains)

@@ -24,6 +24,16 @@ internal static class Program
     private static void Main()
     {
         EtoPlatform.Current = new WinFormsEtoPlatform();
+        using var application = EtoPlatform.Current.CreateApplication();
+        foreach (var key in new[] { "profile_simplex", "profile_duplex" })
+        {
+            foreach (var scale in new[] { 1, 2 })
+            {
+                using var icon = EtoPlatform.Current.IconProvider.GetIcon(key, IconScenario.SmallToolbar, scale);
+                if (icon == null || icon.Width != 16 * scale || icon.Height != 16 * scale)
+                    throw new InvalidOperationException($"Missing profile icon: {key} at {scale}x");
+            }
+        }
         var helper = new EtoDialogHelper(null!, null!, null!);
         string initialFolder = Path.GetFullPath(AppContext.BaseDirectory);
         foreach (bool accept in new[] { false, true })

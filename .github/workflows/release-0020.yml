@@ -133,4 +133,12 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          gh release create nicy-0020 release-assets/* --target "$RELEASE_SHA" --title "NAPS2 Nicy-0020" --notes "На базе NAPS2 8.6.1. Значки и цвет кнопок задаются в редакторе профиля. В настройках панелей можно включить компактную пару Извлечь / По одной. У отдельной кнопки Извлечь по одному подпись в две строки."
+          notes="На базе NAPS2 8.6.1. Значки и цвет кнопок задаются в редакторе профиля. В настройках панелей можно включить компактную пару Извлечь / По одной. У отдельной кнопки Извлечь по одному подпись в две строки."
+          if gh release view nicy-0020 >/dev/null 2>&1; then
+            gh release upload nicy-0020 release-assets/* --clobber
+            old_tag=$(git ls-remote origin refs/tags/nicy-0020 | cut -f1)
+            git push --force-with-lease="refs/tags/nicy-0020:$old_tag" origin "$RELEASE_SHA:refs/tags/nicy-0020"
+            gh release edit nicy-0020 --notes "$notes"
+          else
+            gh release create nicy-0020 release-assets/* --target "$RELEASE_SHA" --title "NAPS2 Nicy-0020" --notes "$notes"
+          fi

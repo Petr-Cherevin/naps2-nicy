@@ -66,14 +66,17 @@ public class EditProfileForm : EtoDialogBase
         var defaultForeground = _sample.TextColor;
         void UpdateSample()
         {
-            _sample.Text = _displayName.Text;
-            _sample.Image = iconProvider.GetIcon(_toolbarIcon.SelectedKey ?? "control_play_blue", IconScenario.SmallToolbar);
+            var icon = iconProvider.GetIcon(_toolbarIcon.SelectedKey ?? "control_play_blue", IconScenario.SmallToolbar);
+            var previous = _sample.Image;
+            _sample.Image = icon;
+            previous?.Dispose();
             _sample.BackgroundColor = SelectedColor is int rgb ? Color.FromRgb(rgb) : defaultBackground;
             _sample.TextColor = SelectedColor.HasValue ? Colors.Black : defaultForeground;
         }
         _toolbarIcon.SelectedIndexChanged += (_, _) => UpdateSample();
         _toolbarColor.SelectedIndexChanged += (_, _) => UpdateSample();
-        _displayName.TextChanged += (_, _) => UpdateSample();
+        _displayName.TextChanged += (_, _) => _sample.Text = _displayName.Text;
+        UpdateSample();
 
         _errorOutput = errorOutput;
         _profileNameTracker = profileNameTracker;
